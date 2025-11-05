@@ -1,0 +1,437 @@
+{
+  "info": {
+    "name": "Employee Upsert Logic App - Test Collection",
+    "description": "Test collection for the Employee Upsert Logic App with various scenarios including success, validation errors, and edge cases",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "logicAppUrl",
+      "value": "http://localhost:7071/api/UpsertEmployee/triggers/When_a_HTTP_request_is_received/invoke?api-version=2022-05-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=9XjNAk6JsCFwyeKoTx8ivU6Po5pSPc2fViw7_zJJxeg",
+      "description": "Complete callback URL for the Logic App HTTP trigger"
+    },
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:7071",
+      "description": "Base URL for local testing"
+    }
+  ],
+  "item": [
+    {
+      "name": "Success Scenarios",
+      "item": [
+        {
+          "name": "1. Insert New Employee - Complete Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 2001,\n  \"FirstName\": \"Alice\",\n  \"LastName\": \"Johnson\",\n  \"Department\": \"Engineering\",\n  \"Position\": \"Senior Software Engineer\",\n  \"Salary\": 95000.00,\n  \"Email\": \"alice.johnson@company.com\"\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Insert a new employee with all optional fields populated"
+          },
+          "response": []
+        },
+        {
+          "name": "2. Insert New Employee - Minimal Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 2002,\n  \"FirstName\": \"Bob\",\n  \"LastName\": \"Williams\"\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Insert a new employee with only required fields"
+          },
+          "response": []
+        },
+        {
+          "name": "3. Update Existing Employee",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 1001,\n  \"FirstName\": \"John\",\n  \"LastName\": \"Doe\",\n  \"Department\": \"IT\",\n  \"Position\": \"Senior Software Engineer\",\n  \"Salary\": 85000.00,\n  \"Email\": \"john.doe@company.com\"\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Update an existing employee (ID 1001 from sample data)"
+          },
+          "response": []
+        },
+        {
+          "name": "4. Update Employee - Partial Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 1002,\n  \"FirstName\": \"Jane\",\n  \"LastName\": \"Smith\",\n  \"Department\": \"Human Resources\",\n  \"Position\": \"Senior HR Manager\"\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Update an existing employee with partial data (no salary/email)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Validation Error Scenarios",
+      "item": [
+        {
+          "name": "5. Missing EmployeeID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"FirstName\": \"Test\",\n  \"LastName\": \"User\",\n  \"Department\": \"IT\"\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Should return 400 - Missing required EmployeeID"
+          },
+          "response": []
+        },
+        {
+          "name": "6. Missing FirstName",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 3001,\n  \"LastName\": \"User\",\n  \"Department\": \"IT\"\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Should return 400 - Missing required FirstName"
+          },
+          "response": []
+        },
+        {
+          "name": "7. Missing LastName",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 3002,\n  \"FirstName\": \"Test\",\n  \"Department\": \"IT\"\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Should return 400 - Missing required LastName"
+          },
+          "response": []
+        },
+        {
+          "name": "8. Empty FirstName",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 3003,\n  \"FirstName\": \"\",\n  \"LastName\": \"User\",\n  \"Department\": \"IT\"\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Should return 400 - Empty FirstName"
+          },
+          "response": []
+        },
+        {
+          "name": "9. Invalid EmployeeID (Zero)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 0,\n  \"FirstName\": \"Test\",\n  \"LastName\": \"User\",\n  \"Department\": \"IT\"\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Should return 400 - EmployeeID must be greater than 0"
+          },
+          "response": []
+        },
+        {
+          "name": "10. Invalid EmployeeID (Negative)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": -1,\n  \"FirstName\": \"Test\",\n  \"LastName\": \"User\",\n  \"Department\": \"IT\"\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Should return 400 - EmployeeID must be greater than 0"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Edge Cases",
+      "item": [
+        {
+          "name": "11. Very Long Text Fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 4001,\n  \"FirstName\": \"ThisIsAVeryLongFirstNameThatMightExceedTheExpectedLengthAndShouldBeHandledProperly\",\n  \"LastName\": \"ThisIsAVeryLongLastNameThatMightExceedTheExpectedLengthAndShouldBeHandledProperly\",\n  \"Department\": \"ThisIsAVeryLongDepartmentNameThatMightExceedTheExpectedLengthAndShouldBeHandledProperly\",\n  \"Position\": \"ThisIsAVeryLongPositionNameThatMightExceedTheExpectedLengthAndShouldBeHandledProperly\"\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Test with very long text fields to check truncation/validation"
+          },
+          "response": []
+        },
+        {
+          "name": "12. Special Characters",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 4002,\n  \"FirstName\": \"José\",\n  \"LastName\": \"O'Connor-Smith\",\n  \"Department\": \"R&D\",\n  \"Position\": \"Sr. Engineer (AI/ML)\",\n  \"Email\": \"jose.o'connor+test@company.com\"\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Test with special characters, accents, and symbols"
+          },
+          "response": []
+        },
+        {
+          "name": "13. Very High Salary",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 4003,\n  \"FirstName\": \"Executive\",\n  \"LastName\": \"Director\",\n  \"Department\": \"Executive\",\n  \"Position\": \"Chief Technology Officer\",\n  \"Salary\": 999999.99\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Test with very high salary value"
+          },
+          "response": []
+        },
+        {
+          "name": "14. Malformed JSON",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 5001,\n  \"FirstName\": \"Test\",\n  \"LastName\": \"User\",\n  \"Department\": \"IT\""
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Test with malformed JSON (missing closing brace)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Performance Tests",
+      "item": [
+        {
+          "name": "15. Large Employee ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 2147483647,\n  \"FirstName\": \"MaxInt\",\n  \"LastName\": \"Employee\",\n  \"Department\": \"Testing\",\n  \"Position\": \"Test Engineer\"\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Test with maximum integer value for EmployeeID"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Add timestamp to request for tracking",
+          "pm.globals.set('requestTimestamp', new Date().toISOString());"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Common tests for all requests",
+          "pm.test('Response time is less than 10 seconds', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(10000);",
+          "});",
+          "",
+          "pm.test('Response has Content-Type header', function () {",
+          "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "});",
+          "",
+          "pm.test('Response body is valid JSON', function () {",
+          "    pm.expect(function() { pm.response.json(); }).to.not.throw();",
+          "});",
+          "",
+          "// Status-specific tests",
+          "if (pm.response.code === 200) {",
+          "    pm.test('Success response contains required fields', function () {",
+          "        const jsonData = pm.response.json();",
+          "        pm.expect(jsonData).to.have.property('status');",
+          "        pm.expect(jsonData).to.have.property('message');",
+          "        pm.expect(jsonData).to.have.property('data');",
+          "        pm.expect(jsonData.status).to.eql('success');",
+          "    });",
+          "}",
+          "",
+          "if (pm.response.code === 400) {",
+          "    pm.test('Validation error response contains error details', function () {",
+          "        const jsonData = pm.response.json();",
+          "        pm.expect(jsonData).to.have.property('status');",
+          "        pm.expect(jsonData).to.have.property('data');",
+          "        pm.expect(jsonData.status).to.eql('validation_error');",
+          "    });",
+          "}",
+          "",
+          "if (pm.response.code === 500) {",
+          "    pm.test('Error response contains error information', function () {",
+          "        const jsonData = pm.response.json();",
+          "        pm.expect(jsonData).to.have.property('status');",
+          "        pm.expect(jsonData).to.have.property('message');",
+          "        pm.expect(jsonData.status).to.eql('error');",
+          "    });",
+          "}",
+          "",
+          "// Log response for debugging",
+          "console.log('Request:', pm.globals.get('requestTimestamp'));",
+          "console.log('Status:', pm.response.code);",
+          "console.log('Response:', pm.response.text());"
+        ]
+      }
+    }
+  ]
+}

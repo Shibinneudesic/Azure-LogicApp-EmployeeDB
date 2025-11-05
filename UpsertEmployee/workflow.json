@@ -1,0 +1,471 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "actions": {
+      "LogStartOfWorkflow": {
+        "type": "Compose",
+        "inputs": {
+          "timestamp": "@utcNow()",
+          "workflowName": "UpsertEmployee",
+          "runId": "@workflow().run.name",
+          "triggerBody": "@triggerBody()",
+          "logLevel": "INFO",
+          "message": "Starting Employee Upsert workflow"
+        },
+        "runAfter": {}
+      },
+      "ValidateInput": {
+        "type": "If",
+        "expression": {
+          "and": [
+            {
+              "not": {
+                "equals": [
+                  "@triggerBody()?['EmployeeID']",
+                  null
+                ]
+              }
+            },
+            {
+              "not": {
+                "equals": [
+                  "@triggerBody()?['FirstName']",
+                  ""
+                ]
+              }
+            },
+            {
+              "not": {
+                "equals": [
+                  "@triggerBody()?['LastName']",
+                  ""
+                ]
+              }
+            },
+            {
+              "greater": [
+                "@triggerBody()?['EmployeeID']",
+                0
+              ]
+            }
+          ]
+        },
+        "actions": {
+          "Try": {
+            "type": "Scope",
+            "actions": {
+              "LogStartOfTryBlock": {
+                "type": "Compose",
+                "inputs": {
+                  "timestamp": "@utcNow()",
+                  "workflowName": "UpsertEmployee",
+                  "runId": "@workflow().run.name",
+                  "logLevel": "INFO",
+                  "message": "Starting database operations for EmployeeID: @{triggerBody()?['EmployeeID']}"
+                },
+                "runAfter": {}
+              },
+              "CheckExistingEmployee": {
+                "type": "ServiceProvider",
+                "inputs": {
+                  "parameters": {
+                    "query": "SELECT COUNT(*) AS RecordCount FROM Employee WHERE EmployeeID=@EmployeeID AND IsActive=1",
+                    "queryParameters": {
+                      "EmployeeID": "@triggerBody()?['EmployeeID']"
+                    }
+                  },
+                  "serviceProviderConfiguration": {
+                    "connectionName": "sql",
+                    "operationId": "executeQuery",
+                    "serviceProviderId": "/serviceProviders/sql"
+                  }
+                },
+                "runAfter": {
+                  "LogStartOfTryBlock": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "LogEmployeeCheckResult": {
+                "type": "Compose",
+                "inputs": {
+                  "timestamp": "@utcNow()",
+                  "workflowName": "UpsertEmployee",
+                  "runId": "@workflow().run.name",
+                  "logLevel": "INFO",
+                  "message": "Employee existence check completed",
+                  "employeeID": "@triggerBody()?['EmployeeID']",
+                  "recordCount": "@body('CheckExistingEmployee')[0][0]['RecordCount']"
+                },
+                "runAfter": {
+                  "CheckExistingEmployee": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "CheckRecordExists": {
+                "type": "If",
+                "expression": {
+                  "and": [
+                    {
+                      "greater": [
+                        "@body('CheckExistingEmployee')[0][0]['RecordCount']",
+                        0
+                      ]
+                    }
+                  ]
+                },
+                "actions": {
+                  "LogUpdateOperation": {
+                    "type": "Compose",
+                    "inputs": {
+                      "timestamp": "@utcNow()",
+                      "workflowName": "UpsertEmployee",
+                      "runId": "@workflow().run.name",
+                      "logLevel": "INFO",
+                      "message": "Updating existing employee",
+                      "employeeID": "@triggerBody()?['EmployeeID']",
+                      "operation": "UPDATE"
+                    },
+                    "runAfter": {}
+                  },
+                  "UpdateEmployee": {
+                    "type": "ServiceProvider",
+                    "inputs": {
+                      "parameters": {
+                        "query": "UPDATE Employee SET FirstName=@FirstName, LastName=@LastName, Department=@Department, Position=@Position, Salary=@Salary, Email=@Email WHERE EmployeeID=@EmployeeID AND IsActive=1",
+                        "queryParameters": {
+                          "EmployeeID": "@triggerBody()?['EmployeeID']",
+                          "FirstName": "@triggerBody()?['FirstName']",
+                          "LastName": "@triggerBody()?['LastName']",
+                          "Department": "@triggerBody()?['Department']",
+                          "Position": "@triggerBody()?['Position']",
+                          "Salary": "@triggerBody()?['Salary']",
+                          "Email": "@triggerBody()?['Email']"
+                        }
+                      },
+                      "serviceProviderConfiguration": {
+                        "connectionName": "sql",
+                        "operationId": "executeQuery",
+                        "serviceProviderId": "/serviceProviders/sql"
+                      }
+                    },
+                    "runAfter": {
+                      "LogUpdateOperation": [
+                        "Succeeded"
+                      ]
+                    }
+                  },
+                  "LogUpdateSuccess": {
+                    "type": "Compose",
+                    "inputs": {
+                      "timestamp": "@utcNow()",
+                      "workflowName": "UpsertEmployee",
+                      "runId": "@workflow().run.name",
+                      "logLevel": "INFO",
+                      "message": "Employee updated successfully",
+                      "employeeID": "@triggerBody()?['EmployeeID']",
+                      "operation": "UPDATE",
+                      "rowsAffected": "Success"
+                    },
+                    "runAfter": {
+                      "UpdateEmployee": [
+                        "Succeeded"
+                      ]
+                    }
+                  }
+                },
+                "else": {
+                  "actions": {
+                    "LogInsertOperation": {
+                      "type": "Compose",
+                      "inputs": {
+                        "timestamp": "@utcNow()",
+                        "workflowName": "UpsertEmployee",
+                        "runId": "@workflow().run.name",
+                        "logLevel": "INFO",
+                        "message": "Inserting new employee",
+                        "employeeID": "@triggerBody()?['EmployeeID']",
+                        "operation": "INSERT"
+                      },
+                      "runAfter": {}
+                    },
+                    "InsertEmployee": {
+                      "type": "ServiceProvider",
+                      "inputs": {
+                        "parameters": {
+                          "query": "INSERT INTO Employee (EmployeeID, FirstName, LastName, Department, Position, Salary, Email) VALUES (@EmployeeID, @FirstName, @LastName, @Department, @Position, @Salary, @Email)",
+                          "queryParameters": {
+                            "EmployeeID": "@triggerBody()?['EmployeeID']",
+                            "FirstName": "@triggerBody()?['FirstName']",
+                            "LastName": "@triggerBody()?['LastName']",
+                            "Department": "@triggerBody()?['Department']",
+                            "Position": "@triggerBody()?['Position']",
+                            "Salary": "@triggerBody()?['Salary']",
+                            "Email": "@triggerBody()?['Email']"
+                          }
+                        },
+                        "serviceProviderConfiguration": {
+                          "connectionName": "sql",
+                          "operationId": "executeQuery",
+                          "serviceProviderId": "/serviceProviders/sql"
+                        }
+                      },
+                      "runAfter": {
+                        "LogInsertOperation": [
+                          "Succeeded"
+                        ]
+                      }
+                    },
+                    "LogInsertSuccess": {
+                      "type": "Compose",
+                      "inputs": {
+                        "timestamp": "@utcNow()",
+                        "workflowName": "UpsertEmployee",
+                        "runId": "@workflow().run.name",
+                        "logLevel": "INFO",
+                        "message": "Employee inserted successfully",
+                        "employeeID": "@triggerBody()?['EmployeeID']",
+                        "operation": "INSERT",
+                        "rowsAffected": "Success"
+                      },
+                      "runAfter": {
+                        "InsertEmployee": [
+                          "Succeeded"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "runAfter": {
+                  "LogEmployeeCheckResult": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "LogSuccessOperation": {
+                "type": "Compose",
+                "inputs": {
+                  "timestamp": "@utcNow()",
+                  "workflowName": "UpsertEmployee",
+                  "runId": "@workflow().run.name",
+                  "logLevel": "INFO",
+                  "message": "Workflow completed successfully",
+                  "employeeID": "@triggerBody()?['EmployeeID']",
+                  "operation": "@if(greater(body('CheckExistingEmployee')[0][0]['RecordCount'], 0), 'UPDATE', 'INSERT')"
+                },
+                "runAfter": {
+                  "CheckRecordExists": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "SuccessResponse": {
+                "type": "Response",
+                "kind": "Http",
+                "inputs": {
+                  "statusCode": 200,
+                  "headers": {
+                    "Content-Type": "application/json"
+                  },
+                  "body": {
+                    "status": "success",
+                    "message": "Employee record processed successfully",
+                    "data": {
+                      "employeeID": "@triggerBody()?['EmployeeID']",
+                      "operation": "@if(greater(body('CheckExistingEmployee')[0][0]['RecordCount'], 0), 'UPDATE', 'INSERT')",
+                      "timestamp": "@utcNow()",
+                      "runId": "@workflow().run.name"
+                    }
+                  }
+                },
+                "runAfter": {
+                  "LogSuccessOperation": [
+                    "Succeeded"
+                  ]
+                }
+              }
+            },
+            "runAfter": {}
+          },
+          "Catch": {
+            "type": "Scope",
+            "actions": {
+              "ComposeError": {
+                "type": "Compose",
+                "inputs": {
+                  "timestamp": "@utcNow()",
+                  "workflowName": "UpsertEmployee",
+                  "runId": "@workflow().run.name",
+                  "logLevel": "ERROR",
+                  "message": "Error occurred during workflow execution",
+                  "employeeID": "@triggerBody()?['EmployeeID']",
+                  "errorDetails": "@result('Try')",
+                  "triggerBody": "@triggerBody()"
+                },
+                "runAfter": {}
+              },
+              "LogErrorDetails": {
+                "type": "Compose",
+                "inputs": {
+                  "timestamp": "@utcNow()",
+                  "workflowName": "UpsertEmployee",
+                  "runId": "@workflow().run.name",
+                  "logLevel": "ERROR",
+                  "message": "Detailed error information",
+                  "errorCode": "@{first(result('Try'))?['error']?['code']}",
+                  "errorMessage": "@{first(result('Try'))?['error']?['message']}",
+                  "employeeID": "@triggerBody()?['EmployeeID']"
+                },
+                "runAfter": {
+                  "ComposeError": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "ErrorResponse": {
+                "type": "Response",
+                "kind": "Http",
+                "inputs": {
+                  "statusCode": 500,
+                  "headers": {
+                    "Content-Type": "application/json"
+                  },
+                  "body": {
+                    "status": "error",
+                    "message": "An error occurred while processing the employee record",
+                    "data": {
+                      "employeeID": "@triggerBody()?['EmployeeID']",
+                      "errorCode": "@{first(result('Try'))?['error']?['code']}",
+                      "errorMessage": "@{first(result('Try'))?['error']?['message']}",
+                      "timestamp": "@utcNow()",
+                      "runId": "@workflow().run.name"
+                    }
+                  }
+                },
+                "runAfter": {
+                  "LogErrorDetails": [
+                    "Succeeded"
+                  ]
+                }
+              }
+            },
+            "runAfter": {
+              "Try": [
+                "Failed",
+                "Skipped",
+                "TimedOut"
+              ]
+            }
+          }
+        },
+        "else": {
+          "actions": {
+            "LogValidationError": {
+              "type": "Compose",
+              "inputs": {
+                "timestamp": "@utcNow()",
+                "workflowName": "UpsertEmployee",
+                "runId": "@workflow().run.name",
+                "logLevel": "ERROR",
+                "message": "Input validation failed",
+                "validationErrors": [
+                  "@if(equals(triggerBody()?['EmployeeID'], null), 'EmployeeID is required', '')",
+                  "@if(equals(triggerBody()?['FirstName'], ''), 'FirstName is required', '')",
+                  "@if(equals(triggerBody()?['LastName'], ''), 'LastName is required', '')",
+                  "@if(lessOrEquals(triggerBody()?['EmployeeID'], 0), 'EmployeeID must be greater than 0', '')"
+                ],
+                "triggerBody": "@triggerBody()"
+              },
+              "runAfter": {}
+            },
+            "ValidationErrorResponse": {
+              "type": "Response",
+              "kind": "Http",
+              "inputs": {
+                "statusCode": 400,
+                "headers": {
+                  "Content-Type": "application/json"
+                },
+                "body": {
+                  "status": "validation_error",
+                  "message": "Input validation failed. Please check the required fields.",
+                  "data": {
+                    "errors": [
+                      "@if(equals(triggerBody()?['EmployeeID'], null), 'EmployeeID is required', '')",
+                      "@if(equals(triggerBody()?['FirstName'], ''), 'FirstName is required', '')",
+                      "@if(equals(triggerBody()?['LastName'], ''), 'LastName is required', '')",
+                      "@if(lessOrEquals(triggerBody()?['EmployeeID'], 0), 'EmployeeID must be greater than 0', '')"
+                    ],
+                    "timestamp": "@utcNow()",
+                    "runId": "@workflow().run.name"
+                  }
+                }
+              },
+              "runAfter": {
+                "LogValidationError": [
+                  "Succeeded"
+                ]
+              }
+            }
+          }
+        },
+        "runAfter": {
+          "LogStartOfWorkflow": [
+            "Succeeded"
+          ]
+        }
+      }
+    },
+    "outputs": {},
+    "triggers": {
+      "When_a_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {
+          "method": "POST",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "EmployeeID": {
+                "type": "integer",
+                "description": "Unique employee identifier (required)"
+              },
+              "FirstName": {
+                "type": "string",
+                "description": "Employee first name (required)"
+              },
+              "LastName": {
+                "type": "string",
+                "description": "Employee last name (required)"
+              },
+              "Department": {
+                "type": "string",
+                "description": "Employee department (optional)"
+              },
+              "Position": {
+                "type": "string",
+                "description": "Employee position/title (optional)"
+              },
+              "Salary": {
+                "type": "number",
+                "description": "Employee salary (optional)"
+              },
+              "Email": {
+                "type": "string",
+                "description": "Employee email address (optional)"
+              }
+            },
+            "required": [
+              "EmployeeID",
+              "FirstName",
+              "LastName"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "kind": "Stateful"
+}

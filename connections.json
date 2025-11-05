@@ -1,0 +1,24 @@
+{
+  "managedApiConnections": {},
+  "serviceProviderConnections": {
+    "sql": {
+      "parameterValues": {
+        "connectionString": "Server=(localdb)\\MSSQLLocalDB;Database=EmployeeDB;Trusted_Connection=True;MultipleActiveResultSets=True;"
+      },
+      "serviceProvider": {
+        "id": "/serviceProviders/sql"
+      },
+      "displayName": "sql"
+    },
+    "azureloganalyticsdatacollector": {
+      "parameterValues": {
+        "username": "local-development",
+        "password": "local-development"
+      },
+      "serviceProvider": {
+        "id": "/serviceProviders/azureloganalyticsdatacollector"
+      },
+      "displayName": "azureloganalyticsdatacollector"
+    }
+  }
+}
