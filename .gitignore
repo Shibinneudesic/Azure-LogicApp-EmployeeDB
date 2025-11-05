@@ -8,6 +8,7 @@ __blobstorage__
 .debug
 __queuestorage__
 __azurite_db*__.json
+azurite.log
 
 # Added folders and file patterns
 workflow-designtime/
