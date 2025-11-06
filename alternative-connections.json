@@ -1,0 +1,17 @@
+// Alternative connection string for SQL Authentication
+// Replace in connections.json if you have SQL credentials
+
+{
+  "managedApiConnections": {},
+  "serviceProviderConnections": {
+    "sql": {
+      "parameterValues": {
+        "connectionString": "Server=tcp:aistrainingserver.database.windows.net,1433;Initial Catalog=empdb;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;User ID=your_sql_username;Password=your_sql_password;"
+      },
+      "serviceProvider": {
+        "id": "/serviceProviders/sql"
+      },
+      "displayName": "sql"
+    }
+  }
+}

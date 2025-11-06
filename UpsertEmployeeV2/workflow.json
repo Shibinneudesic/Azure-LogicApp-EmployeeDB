@@ -1,0 +1,235 @@
+﻿{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "3.0.0.0",
+    "actions": {
+      "Initialize_ValidationErrors": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [{ "name": "ValidationErrors", "type": "array", "value": [] }]
+        },
+        "runAfter": {}
+      },
+      "Initialize_HasErrors": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [{ "name": "HasErrors", "type": "boolean", "value": false }]
+        },
+        "runAfter": { "Initialize_ValidationErrors": ["Succeeded"] }
+      },
+      "Initialize_ProcessedCount": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [{ "name": "ProcessedCount", "type": "integer", "value": 0 }]
+        },
+        "runAfter": { "Initialize_HasErrors": ["Succeeded"] }
+      },
+      "Initialize_InsertedCount": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [{ "name": "InsertedCount", "type": "integer", "value": 0 }]
+        },
+        "runAfter": { "Initialize_ProcessedCount": ["Succeeded"] }
+      },
+      "Log_Start": {
+        "type": "Compose",
+        "inputs": {
+          "logLevel": "INFO",
+          "timestamp": "@utcNow()",
+          "message": "Workflow started",
+          "runId": "@workflow().run.name"
+        },
+        "runAfter": { "Initialize_InsertedCount": ["Succeeded"] }
+      },
+      "Check_Schema": {
+        "type": "If",
+        "expression": {
+          "and": [
+            { "not": { "equals": ["@triggerBody()?['employees']", null] } },
+            { "not": { "equals": ["@triggerBody()?['employees']?['employee']", null] } },
+            { "greater": ["@length(triggerBody()?['employees']?['employee'])", 0] }
+          ]
+        },
+        "actions": {
+          "Validate_Employees": {
+            "type": "Foreach",
+            "foreach": "@triggerBody()?['employees']?['employee']",
+            "actions": {
+              "Check_Fields": {
+                "type": "If",
+                "expression": {
+                  "or": [
+                    { "equals": ["@items('Validate_Employees')?['id']", null] },
+                    { "lessOrEquals": ["@coalesce(items('Validate_Employees')?['id'], 0)", 0] },
+                    { "or": [
+                        { "equals": ["@items('Validate_Employees')?['firstName']", null] },
+                        { "equals": ["@trim(string(coalesce(items('Validate_Employees')?['firstName'], '')))", ""] }
+                    ]},
+                    { "or": [
+                        { "equals": ["@items('Validate_Employees')?['lastName']", null] },
+                        { "equals": ["@trim(string(coalesce(items('Validate_Employees')?['lastName'], '')))", ""] }
+                    ]}
+                  ]
+                },
+                "actions": {
+                  "Append_Error": {
+                    "type": "AppendToArrayVariable",
+                    "inputs": {
+                      "name": "ValidationErrors",
+                      "value": {
+                        "id": "@coalesce(items('Validate_Employees')?['id'], 'null')",
+                        "firstName": "@coalesce(items('Validate_Employees')?['firstName'], 'null')",
+                        "lastName": "@coalesce(items('Validate_Employees')?['lastName'], 'null')",
+                        "error": "Invalid or missing required fields"
+                      }
+                    },
+                    "runAfter": {}
+                  },
+                  "Set_Error_Flag": {
+                    "type": "SetVariable",
+                    "inputs": { "name": "HasErrors", "value": true },
+                    "runAfter": { "Append_Error": ["Succeeded"] }
+                  }
+                },
+                "runAfter": {}
+              }
+            },
+            "runAfter": {}
+          },
+          "Process_Or_Error": {
+            "type": "If",
+            "expression": { "equals": ["@variables('HasErrors')", true] },
+            "actions": {
+              "Return_Validation_Error": {
+                "type": "Response",
+                "kind": "Http",
+                "inputs": {
+                  "statusCode": 400,
+                  "body": {
+                    "status": "error",
+                    "code": 400,
+                    "message": "Employee validation failed",
+                    "details": { "errors": "@variables('ValidationErrors')" },
+                    "timestamp": "@utcNow()",
+                    "runId": "@workflow().run.name"
+                  }
+                },
+                "runAfter": {}
+              }
+            },
+            "else": {
+              "actions": {
+                "Process_Employees": {
+                  "type": "Foreach",
+                  "foreach": "@triggerBody()?['employees']?['employee']",
+                  "actions": {
+                    "Upsert_Employee": {
+                      "type": "ServiceProvider",
+                      "inputs": {
+                        "parameters": {
+                          "query": "EXEC UpsertEmployeeSimple @ID=@{items('Process_Employees')?['id']},@FirstName='@{replace(items('Process_Employees')?['firstName'],'''','''''')}',@LastName='@{replace(items('Process_Employees')?['lastName'],'''','''''')}',@Department='@{replace(coalesce(items('Process_Employees')?['department'],''),'''','''''')}',@Position='@{replace(coalesce(items('Process_Employees')?['position'],''),'''','''''')}',@Salary=@{coalesce(items('Process_Employees')?['salary'],'NULL')},@Email='@{replace(coalesce(items('Process_Employees')?['email'],''),'''','''''')}'"
+                        },
+                        "serviceProviderConfiguration": {
+                          "connectionName": "sql",
+                          "operationId": "executeQuery",
+                          "serviceProviderId": "/serviceProviders/sql"
+                        }
+                      },
+                      "runAfter": {}
+                    },
+                    "Increment_ProcessCount": {
+                      "type": "IncrementVariable",
+                      "inputs": { "name": "ProcessedCount", "value": 1 },
+                      "runAfter": { "Upsert_Employee": ["Succeeded"] }
+                    }
+                  },
+                  "runAfter": {}
+                },
+                "Return_Success": {
+                  "type": "Response",
+                  "kind": "Http",
+                  "inputs": {
+                    "statusCode": 200,
+                    "body": {
+                      "status": "success",
+                      "code": 200,
+                      "message": "Employee upsert completed successfully",
+                      "details": {
+                        "totalProcessed": "@variables('ProcessedCount')",
+                        "requestedCount": "@length(triggerBody()?['employees']?['employee'])"
+                      },
+                      "timestamp": "@utcNow()",
+                      "runId": "@workflow().run.name"
+                    }
+                  },
+                  "runAfter": { "Process_Employees": ["Succeeded"] }
+                }
+              }
+            },
+            "runAfter": { "Validate_Employees": ["Succeeded"] }
+          }
+        },
+        "else": {
+          "actions": {
+            "Return_Schema_Error": {
+              "type": "Response",
+              "kind": "Http",
+              "inputs": {
+                "statusCode": 400,
+                "body": {
+                  "status": "error",
+                  "code": 400,
+                  "message": "Invalid request structure",
+                  "timestamp": "@utcNow()",
+                  "runId": "@workflow().run.name"
+                }
+              },
+              "runAfter": {}
+            }
+          }
+        },
+        "runAfter": { "Log_Start": ["Succeeded"] }
+      }
+    },
+    "triggers": {
+      "When_a_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "employees": {
+                "type": "object",
+                "properties": {
+                  "employee": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "integer" },
+                        "firstName": { "type": "string" },
+                        "lastName": { "type": "string" },
+                        "department": { "type": "string" },
+                        "position": { "type": "string" },
+                        "salary": { "type": "number" },
+                        "email": { "type": "string" }
+                      },
+                      "required": ["id", "firstName", "lastName"]
+                    }
+                  }
+                },
+                "required": ["employee"]
+              }
+            },
+            "required": ["employees"]
+          }
+        }
+      }
+    },
+    "parameters": {
+      "$connections": { "defaultValue": {}, "type": "Object" }
+    }
+  },
+  "kind": "Stateful"
+}

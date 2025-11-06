@@ -3,7 +3,7 @@
   "serviceProviderConnections": {
     "sql": {
       "parameterValues": {
-        "connectionString": "Server=tcp:aistrainingserver.database.windows.net,1433;Initial Catalog=empdb;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication=\"Active Directory Default\";"
+        "connectionString": "Server=(localdb)\\MSSQLLocalDB;Database=EmployeeDB;Trusted_Connection=True;MultipleActiveResultSets=True;Connection Timeout=30;"
       },
       "serviceProvider": {
         "id": "/serviceProviders/sql"
@@ -12,8 +12,8 @@
     },
     "azureloganalyticsdatacollector": {
       "parameterValues": {
-        "username": "8e0e91cd-3ac1-4479-b7c7-74f1e7af5f0c",
-        "password": "fw6ZBfFnxtAGuKPivop/AU0kfI8xq6vLJ/UTv7HVCrYRIDKwk+HYvCmbOJogALloqroMIPR+4TUM+PvLogDMQg=="
+        "username": "local-test",
+        "password": "local-test-key"
       },
       "serviceProvider": {
         "id": "/serviceProviders/azureloganalyticsdatacollector"

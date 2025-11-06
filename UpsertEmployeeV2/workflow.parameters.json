@@ -1,0 +1,11 @@
+{
+  "$connections": {
+    "value": {
+      "sql": {
+        "connectionId": "/subscriptions/cbb1dbec-731f-4479-a084-bdaec5e54fd4/resourceGroups/AIS_Training_Shibin/providers/Microsoft.Web/sites/upsert-employee/providers/Microsoft.ServiceLinker/linkers/sql",
+        "connectionName": "sql",
+        "id": "/subscriptions/cbb1dbec-731f-4479-a084-bdaec5e54fd4/providers/Microsoft.Web/locations/southindia/managedApis/sql"
+      }
+    }
+  }
+}

@@ -1,0 +1,406 @@
+{
+  "info": {
+    "name": "Employee Batch Upsert Logic App - Test Collection",
+    "description": "Test collection for the Employee Batch Upsert Logic App with various scenarios including multiple employees, validation errors, and edge cases",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "logicAppUrl",
+      "value": "http://localhost:7071/api/UpsertEmployee/triggers/When_a_HTTP_request_is_received/invoke?api-version=2022-05-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=9XjNAk6JsCFwyeKoTx8ivU6Po5pSPc2fViw7_zJJxeg",
+      "description": "Complete callback URL for the Logic App HTTP trigger"
+    },
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:7071",
+      "description": "Base URL for local testing"
+    }
+  ],
+  "item": [
+    {
+      "name": "Success Scenarios",
+      "item": [
+        {
+          "name": "1. Process Multiple Employees - Original Payload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employees\": {\n    \"employee\": [\n      {\n        \"id\": 2001,\n        \"firstName\": \"Shibin\",\n        \"lastName\": \"Sam\",\n        \"department\": \"Quality Assurance\",\n        \"position\": \"Senior QA Engineer\",\n        \"salary\": 82000,\n        \"email\": \"shibin.sam@example.com\"\n      },\n      {\n        \"id\": 2002,\n        \"firstName\": \"Anjali\",\n        \"lastName\": \"Nair\",\n        \"department\": \"Software Development\",\n        \"position\": \"Full Stack Developer\",\n        \"salary\": 95000,\n        \"email\": \"anjali.nair@example.com\"\n      },\n      {\n        \"id\": 2003,\n        \"firstName\": \"Rahul\",\n        \"lastName\": \"Menon\",\n        \"department\": \"Human Resources\",\n        \"position\": \"HR Business Partner\",\n        \"salary\": 78000,\n        \"email\": \"rahul.menon@example.com\"\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Process the original multi-employee payload structure"
+          },
+          "response": []
+        },
+        {
+          "name": "2. Process Single Employee",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employees\": {\n    \"employee\": [\n      {\n        \"id\": 3001,\n        \"firstName\": \"Alice\",\n        \"lastName\": \"Johnson\",\n        \"department\": \"Engineering\",\n        \"position\": \"Senior Software Engineer\",\n        \"salary\": 95000.00,\n        \"email\": \"alice.johnson@company.com\"\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Process a single employee using the new structure"
+          },
+          "response": []
+        },
+        {
+          "name": "3. Process Employees - Minimal Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employees\": {\n    \"employee\": [\n      {\n        \"id\": 3002,\n        \"firstName\": \"Bob\",\n        \"lastName\": \"Williams\"\n      },\n      {\n        \"id\": 3003,\n        \"firstName\": \"Carol\",\n        \"lastName\": \"Davis\"\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Process employees with only required fields"
+          },
+          "response": []
+        },
+        {
+          "name": "4. Update Existing Employees",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employees\": {\n    \"employee\": [\n      {\n        \"id\": 1001,\n        \"firstName\": \"John\",\n        \"lastName\": \"Doe\",\n        \"department\": \"IT\",\n        \"position\": \"Senior Software Engineer\",\n        \"salary\": 85000.00,\n        \"email\": \"john.doe@company.com\"\n      },\n      {\n        \"id\": 1002,\n        \"firstName\": \"Jane\",\n        \"lastName\": \"Smith\",\n        \"department\": \"Human Resources\",\n        \"position\": \"Senior HR Manager\",\n        \"salary\": 88000.00,\n        \"email\": \"jane.smith@company.com\"\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Update existing employees (IDs from sample data)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Mixed Scenarios",
+      "item": [
+        {
+          "name": "5. Mixed Valid and Invalid Employees",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employees\": {\n    \"employee\": [\n      {\n        \"id\": 4001,\n        \"firstName\": \"Valid\",\n        \"lastName\": \"Employee\",\n        \"department\": \"IT\",\n        \"position\": \"Developer\",\n        \"salary\": 75000,\n        \"email\": \"valid.employee@company.com\"\n      },\n      {\n        \"id\": null,\n        \"firstName\": \"Invalid\",\n        \"lastName\": \"Employee1\"\n      },\n      {\n        \"id\": 4002,\n        \"firstName\": \"\",\n        \"lastName\": \"Employee2\"\n      },\n      {\n        \"id\": 4003,\n        \"firstName\": \"Another\",\n        \"lastName\": \"ValidEmployee\",\n        \"department\": \"HR\"\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Should return 207 - Mixed success and validation errors"
+          },
+          "response": []
+        },
+        {
+          "name": "6. Large Batch - 10 Employees",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employees\": {\n    \"employee\": [\n      {\n        \"id\": 5001,\n        \"firstName\": \"Employee\",\n        \"lastName\": \"One\",\n        \"department\": \"Engineering\",\n        \"position\": \"Software Engineer\",\n        \"salary\": 70000,\n        \"email\": \"employee1@company.com\"\n      },\n      {\n        \"id\": 5002,\n        \"firstName\": \"Employee\",\n        \"lastName\": \"Two\",\n        \"department\": \"Engineering\",\n        \"position\": \"Software Engineer\",\n        \"salary\": 71000,\n        \"email\": \"employee2@company.com\"\n      },\n      {\n        \"id\": 5003,\n        \"firstName\": \"Employee\",\n        \"lastName\": \"Three\",\n        \"department\": \"Marketing\",\n        \"position\": \"Marketing Specialist\",\n        \"salary\": 65000,\n        \"email\": \"employee3@company.com\"\n      },\n      {\n        \"id\": 5004,\n        \"firstName\": \"Employee\",\n        \"lastName\": \"Four\",\n        \"department\": \"Sales\",\n        \"position\": \"Sales Representative\",\n        \"salary\": 68000,\n        \"email\": \"employee4@company.com\"\n      },\n      {\n        \"id\": 5005,\n        \"firstName\": \"Employee\",\n        \"lastName\": \"Five\",\n        \"department\": \"HR\",\n        \"position\": \"HR Coordinator\",\n        \"salary\": 62000,\n        \"email\": \"employee5@company.com\"\n      },\n      {\n        \"id\": 5006,\n        \"firstName\": \"Employee\",\n        \"lastName\": \"Six\",\n        \"department\": \"Finance\",\n        \"position\": \"Financial Analyst\",\n        \"salary\": 72000,\n        \"email\": \"employee6@company.com\"\n      },\n      {\n        \"id\": 5007,\n        \"firstName\": \"Employee\",\n        \"lastName\": \"Seven\",\n        \"department\": \"Operations\",\n        \"position\": \"Operations Manager\",\n        \"salary\": 85000,\n        \"email\": \"employee7@company.com\"\n      },\n      {\n        \"id\": 5008,\n        \"firstName\": \"Employee\",\n        \"lastName\": \"Eight\",\n        \"department\": \"Legal\",\n        \"position\": \"Legal Counsel\",\n        \"salary\": 95000,\n        \"email\": \"employee8@company.com\"\n      },\n      {\n        \"id\": 5009,\n        \"firstName\": \"Employee\",\n        \"lastName\": \"Nine\",\n        \"department\": \"IT\",\n        \"position\": \"System Administrator\",\n        \"salary\": 73000,\n        \"email\": \"employee9@company.com\"\n      },\n      {\n        \"id\": 5010,\n        \"firstName\": \"Employee\",\n        \"lastName\": \"Ten\",\n        \"department\": \"Quality Assurance\",\n        \"position\": \"QA Engineer\",\n        \"salary\": 69000,\n        \"email\": \"employee10@company.com\"\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Test processing of a larger batch of employees"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Validation Error Scenarios",
+      "item": [
+        {
+          "name": "7. Missing employees object",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"someOtherField\": \"value\"\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Should return 400 - Missing employees object"
+          },
+          "response": []
+        },
+        {
+          "name": "8. Missing employee array",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employees\": {\n    \"someOtherField\": \"value\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Should return 400 - Missing employee array"
+          },
+          "response": []
+        },
+        {
+          "name": "9. Empty employee array",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employees\": {\n    \"employee\": []\n  }\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Should return 400 - Empty employee array"
+          },
+          "response": []
+        },
+        {
+          "name": "10. All Invalid Employees",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employees\": {\n    \"employee\": [\n      {\n        \"firstName\": \"Missing\",\n        \"lastName\": \"ID\"\n      },\n      {\n        \"id\": 0,\n        \"firstName\": \"Invalid\",\n        \"lastName\": \"ID\"\n      },\n      {\n        \"id\": 6003,\n        \"firstName\": \"\",\n        \"lastName\": \"EmptyFirstName\"\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Should return 400 - All employees have validation errors"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Edge Cases",
+      "item": [
+        {
+          "name": "11. Special Characters in Names",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employees\": {\n    \"employee\": [\n      {\n        \"id\": 7001,\n        \"firstName\": \"José\",\n        \"lastName\": \"O'Connor-Smith\",\n        \"department\": \"R&D\",\n        \"position\": \"Sr. Engineer (AI/ML)\",\n        \"salary\": 92000,\n        \"email\": \"jose.o'connor+test@company.com\"\n      },\n      {\n        \"id\": 7002,\n        \"firstName\": \"François\",\n        \"lastName\": \"Müller\",\n        \"department\": \"International\",\n        \"position\": \"Consultant\",\n        \"salary\": 87000,\n        \"email\": \"francois.muller@company.com\"\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Test with special characters, accents, and symbols"
+          },
+          "response": []
+        },
+        {
+          "name": "12. Very High Salaries",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employees\": {\n    \"employee\": [\n      {\n        \"id\": 8001,\n        \"firstName\": \"Executive\",\n        \"lastName\": \"Director\",\n        \"department\": \"Executive\",\n        \"position\": \"Chief Technology Officer\",\n        \"salary\": 999999.99,\n        \"email\": \"cto@company.com\"\n      },\n      {\n        \"id\": 8002,\n        \"firstName\": \"Chief\",\n        \"lastName\": \"Executive\",\n        \"department\": \"Executive\",\n        \"position\": \"Chief Executive Officer\",\n        \"salary\": 1500000.00,\n        \"email\": \"ceo@company.com\"\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Test with very high salary values"
+          },
+          "response": []
+        },
+        {
+          "name": "13. Large Employee IDs",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employees\": {\n    \"employee\": [\n      {\n        \"id\": 2147483647,\n        \"firstName\": \"MaxInt\",\n        \"lastName\": \"Employee\",\n        \"department\": \"Testing\",\n        \"position\": \"Test Engineer\"\n      },\n      {\n        \"id\": 999999999,\n        \"firstName\": \"LargeID\",\n        \"lastName\": \"Employee\",\n        \"department\": \"Testing\"\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{logicAppUrl}}",
+              "host": ["{{logicAppUrl}}"]
+            },
+            "description": "Test with maximum and large integer values for EmployeeID"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Add timestamp to request for tracking",
+          "pm.globals.set('requestTimestamp', new Date().toISOString());"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Common tests for all requests",
+          "pm.test('Response time is less than 30 seconds', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(30000);",
+          "});",
+          "",
+          "pm.test('Response has Content-Type header', function () {",
+          "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "});",
+          "",
+          "pm.test('Response body is valid JSON', function () {",
+          "    pm.expect(function() { pm.response.json(); }).to.not.throw();",
+          "});",
+          "",
+          "// Status-specific tests",
+          "if (pm.response.code === 200) {",
+          "    pm.test('Success response contains required fields', function () {",
+          "        const jsonData = pm.response.json();",
+          "        pm.expect(jsonData).to.have.property('status');",
+          "        pm.expect(jsonData).to.have.property('message');",
+          "        pm.expect(jsonData).to.have.property('summary');",
+          "        pm.expect(jsonData).to.have.property('results');",
+          "        pm.expect(jsonData.status).to.eql('success');",
+          "    });",
+          "}",
+          "",
+          "if (pm.response.code === 207) {",
+          "    pm.test('Partial success response contains required fields', function () {",
+          "        const jsonData = pm.response.json();",
+          "        pm.expect(jsonData).to.have.property('status');",
+          "        pm.expect(jsonData).to.have.property('summary');",
+          "        pm.expect(jsonData).to.have.property('results');",
+          "        pm.expect(jsonData.status).to.eql('partial_success');",
+          "        pm.expect(jsonData.summary.successfulOperations).to.be.greaterThan(0);",
+          "        pm.expect(jsonData.summary.failedOperations).to.be.greaterThan(0);",
+          "    });",
+          "}",
+          "",
+          "if (pm.response.code === 400) {",
+          "    pm.test('Validation error response contains error details', function () {",
+          "        const jsonData = pm.response.json();",
+          "        pm.expect(jsonData).to.have.property('status');",
+          "        pm.expect(jsonData).to.have.property('data');",
+          "        pm.expect(jsonData.status).to.include('error');",
+          "    });",
+          "}",
+          "",
+          "if (pm.response.code === 500) {",
+          "    pm.test('Error response contains error information', function () {",
+          "        const jsonData = pm.response.json();",
+          "        pm.expect(jsonData).to.have.property('status');",
+          "        pm.expect(jsonData).to.have.property('message');",
+          "        pm.expect(jsonData.status).to.eql('error');",
+          "    });",
+          "}",
+          "",
+          "// Log response for debugging",
+          "console.log('Request:', pm.globals.get('requestTimestamp'));",
+          "console.log('Status:', pm.response.code);",
+          "console.log('Response Summary:', JSON.stringify(pm.response.json().summary || {}, null, 2));"
+        ]
+      }
+    }
+  ]
+}
