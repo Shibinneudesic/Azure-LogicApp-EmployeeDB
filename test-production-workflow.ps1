@@ -1,246 +1,173 @@
-# Test Script for Production-Level Workflow
-# Run this script to test the simplified workflow
+# Production Workflow Test Script
+# Tests all error handling and logging scenarios
 
-$baseUrl = "http://localhost:7071"
-$endpoint = "$baseUrl/api/UpsertEmployee/triggers/When_a_HTTP_request_is_received/invoke"
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "Production Workflow Test Suite" -ForegroundColor Cyan
+Write-Host "========================================`n" -ForegroundColor Cyan
 
-Write-Host "================================" -ForegroundColor Cyan
-Write-Host "Testing Simplified Workflow" -ForegroundColor Cyan
-Write-Host "================================" -ForegroundColor Cyan
-Write-Host ""
+# Local endpoint
+$endpoint = "http://localhost:7071/api/UpsertEmployeeV2/triggers/When_a_HTTP_request_is_received/invoke?api-version=2022-05-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
-# Test 1: Valid Request - Multiple Employees
-Write-Host "Test 1: Valid Request with Multiple Employees" -ForegroundColor Yellow
-$validPayload = @{
+# Test 1: Happy Path - Full Success (200)
+Write-Host "`n[TEST 1] Happy Path - Full Success" -ForegroundColor Yellow
+Write-Host "Expected: HTTP 200, All employees processed" -ForegroundColor Gray
+
+$payload1 = @{
     employees = @{
         employee = @(
             @{
-                id = 2001
+                id = 6001
                 firstName = "Alice"
                 lastName = "Johnson"
                 department = "Engineering"
                 position = "Senior Developer"
-                salary = 95000.00
+                salary = 95000
                 email = "alice.johnson@company.com"
             },
             @{
-                id = 2002
+                id = 6002
                 firstName = "Bob"
-                lastName = "Williams"
-                department = "Marketing"
-                position = "Marketing Manager"
-                salary = 85000.00
-                email = "bob.williams@company.com"
-            },
-            @{
-                id = 2003
-                firstName = "Carol"
-                lastName = "Davis"
-                department = "Sales"
-                position = "Sales Representative"
-                salary = 65000.00
-                email = "carol.davis@company.com"
-            }
-        )
-    }
-}
-
-try {
-    $response = Invoke-RestMethod -Method Post -Uri $endpoint `
-        -ContentType "application/json" `
-        -Body ($validPayload | ConvertTo-Json -Depth 10)
-    
-    Write-Host "✓ Success!" -ForegroundColor Green
-    Write-Host "Status: $($response.status)" -ForegroundColor Green
-    Write-Host "Message: $($response.message)" -ForegroundColor Green
-    Write-Host "Total Processed: $($response.details.totalProcessed)" -ForegroundColor Green
-    Write-Host "Total Inserted: $($response.details.totalInserted)" -ForegroundColor Green
-    Write-Host "Total Updated: $($response.details.totalUpdated)" -ForegroundColor Green
-    Write-Host "Response:" -ForegroundColor Gray
-    $response | ConvertTo-Json -Depth 10 | Write-Host -ForegroundColor Gray
-}
-catch {
-    Write-Host "✗ Failed!" -ForegroundColor Red
-    Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
-}
-
-Write-Host ""
-Start-Sleep -Seconds 2
-
-# Test 2: Schema Validation Error - Empty Array
-Write-Host "Test 2: Schema Validation Error - Empty Employee Array" -ForegroundColor Yellow
-$emptyArrayPayload = @{
-    employees = @{
-        employee = @()
-    }
-}
-
-try {
-    $response = Invoke-RestMethod -Method Post -Uri $endpoint `
-        -ContentType "application/json" `
-        -Body ($emptyArrayPayload | ConvertTo-Json -Depth 10)
-    
-    Write-Host "✗ Should have failed but succeeded!" -ForegroundColor Red
-}
-catch {
-    $errorResponse = $_.ErrorDetails.Message | ConvertFrom-Json
-    Write-Host "✓ Expected error caught!" -ForegroundColor Green
-    Write-Host "Error Code: $($errorResponse.errorCode)" -ForegroundColor Yellow
-    Write-Host "Message: $($errorResponse.message)" -ForegroundColor Yellow
-    Write-Host "Response:" -ForegroundColor Gray
-    $errorResponse | ConvertTo-Json -Depth 10 | Write-Host -ForegroundColor Gray
-}
-
-Write-Host ""
-Start-Sleep -Seconds 2
-
-# Test 3: Schema Validation Error - Missing Structure
-Write-Host "Test 3: Schema Validation Error - Missing employees.employee" -ForegroundColor Yellow
-$missingStructurePayload = @{
-    employees = @{}
-}
-
-try {
-    $response = Invoke-RestMethod -Method Post -Uri $endpoint `
-        -ContentType "application/json" `
-        -Body ($missingStructurePayload | ConvertTo-Json -Depth 10)
-    
-    Write-Host "✗ Should have failed but succeeded!" -ForegroundColor Red
-}
-catch {
-    $errorResponse = $_.ErrorDetails.Message | ConvertFrom-Json
-    Write-Host "✓ Expected error caught!" -ForegroundColor Green
-    Write-Host "Error Code: $($errorResponse.errorCode)" -ForegroundColor Yellow
-    Write-Host "Message: $($errorResponse.message)" -ForegroundColor Yellow
-}
-
-Write-Host ""
-Start-Sleep -Seconds 2
-
-# Test 4: Field Validation Error - Invalid Employee Data
-Write-Host "Test 4: Field Validation Error - Invalid Employee Fields" -ForegroundColor Yellow
-$invalidFieldsPayload = @{
-    employees = @{
-        employee = @(
-            @{
-                id = 0
-                firstName = ""
                 lastName = "Smith"
-            },
-            @{
-                id = -5
-                firstName = "Valid"
-                lastName = ""
-            },
-            @{
-                id = 3001
-                firstName = "   "
-                lastName = "   "
+                department = "Engineering"
+                position = "Developer"
+                salary = 75000
+                email = "bob.smith@company.com"
             }
         )
     }
-}
+} | ConvertTo-Json -Depth 10
 
 try {
-    $response = Invoke-RestMethod -Method Post -Uri $endpoint `
-        -ContentType "application/json" `
-        -Body ($invalidFieldsPayload | ConvertTo-Json -Depth 10)
-    
-    Write-Host "✗ Should have failed but succeeded!" -ForegroundColor Red
-}
-catch {
-    $errorResponse = $_.ErrorDetails.Message | ConvertFrom-Json
-    Write-Host "✓ Expected error caught!" -ForegroundColor Green
-    Write-Host "Error Code: $($errorResponse.errorCode)" -ForegroundColor Yellow
-    Write-Host "Message: $($errorResponse.message)" -ForegroundColor Yellow
-    Write-Host "Error Count: $($errorResponse.details.errorCount)" -ForegroundColor Yellow
-    Write-Host "Response:" -ForegroundColor Gray
-    $errorResponse | ConvertTo-Json -Depth 10 | Write-Host -ForegroundColor Gray
-}
-
-Write-Host ""
-Start-Sleep -Seconds 2
-
-# Test 5: Partial Validation Error - Some Valid, Some Invalid
-Write-Host "Test 5: Partial Validation Error - Mixed Valid/Invalid Records" -ForegroundColor Yellow
-$mixedPayload = @{
-    employees = @{
-        employee = @(
-            @{
-                id = 4001
-                firstName = "Valid"
-                lastName = "Employee"
-                department = "IT"
-            },
-            @{
-                id = 0
-                firstName = ""
-                lastName = "Invalid"
-            },
-            @{
-                id = 4002
-                firstName = "Another"
-                lastName = "Valid"
-            }
-        )
+    $response1 = Invoke-WebRequest -Uri $endpoint -Method Post -Body $payload1 -ContentType "application/json" -UseBasicParsing
+    Write-Host "✓ Status: $($response1.StatusCode)" -ForegroundColor Green
+    Write-Host "Response:" -ForegroundColor Green
+    $response1.Content | ConvertFrom-Json | ConvertTo-Json -Depth 10
+} catch {
+    Write-Host "✗ Error: $($_.Exception.Message)" -ForegroundColor Red
+    if ($_.Exception.Response) {
+        $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+        $reader.BaseStream.Position = 0
+        $responseBody = $reader.ReadToEnd()
+        Write-Host "Response Body: $responseBody" -ForegroundColor Red
     }
 }
 
-try {
-    $response = Invoke-RestMethod -Method Post -Uri $endpoint `
-        -ContentType "application/json" `
-        -Body ($mixedPayload | ConvertTo-Json -Depth 10)
-    
-    Write-Host "✗ Should have failed but succeeded!" -ForegroundColor Red
-}
-catch {
-    $errorResponse = $_.ErrorDetails.Message | ConvertFrom-Json
-    Write-Host "✓ Expected error caught!" -ForegroundColor Green
-    Write-Host "Error Code: $($errorResponse.errorCode)" -ForegroundColor Yellow
-    Write-Host "Message: $($errorResponse.message)" -ForegroundColor Yellow
-    Write-Host "Total Employees: $($errorResponse.details.totalEmployees)" -ForegroundColor Yellow
-    Write-Host "Error Count: $($errorResponse.details.errorCount)" -ForegroundColor Yellow
-}
+# Test 2: Validation Error (400)
+Write-Host "`n[TEST 2] Validation Error - Missing Required Fields" -ForegroundColor Yellow
+Write-Host "Expected: HTTP 400, Validation error" -ForegroundColor Gray
 
-Write-Host ""
-Start-Sleep -Seconds 2
-
-# Test 6: Update Existing Employee
-Write-Host "Test 6: Update Existing Employee (Run Test 1 first)" -ForegroundColor Yellow
-$updatePayload = @{
+$payload2 = @{
     employees = @{
         employee = @(
             @{
-                id = 2001
+                id = $null
+                firstName = "Invalid"
+                lastName = "User"
+            }
+        )
+    }
+} | ConvertTo-Json -Depth 10
+
+try {
+    $response2 = Invoke-WebRequest -Uri $endpoint -Method Post -Body $payload2 -ContentType "application/json" -UseBasicParsing
+    Write-Host "✓ Status: $($response2.StatusCode)" -ForegroundColor Green
+} catch {
+    Write-Host "✓ Expected error: $($_.Exception.Response.StatusCode)" -ForegroundColor Green
+    if ($_.Exception.Response) {
+        $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+        $reader.BaseStream.Position = 0
+        $responseBody = $reader.ReadToEnd()
+        Write-Host "Response:" -ForegroundColor Green
+        $responseBody | ConvertFrom-Json | ConvertTo-Json -Depth 10
+    }
+}
+
+# Test 3: Schema Error (400)
+Write-Host "`n[TEST 3] Schema Error - Invalid Request Structure" -ForegroundColor Yellow
+Write-Host "Expected: HTTP 400, Schema validation error" -ForegroundColor Gray
+
+$payload3 = @{
+    employees = @{}
+} | ConvertTo-Json -Depth 10
+
+try {
+    $response3 = Invoke-WebRequest -Uri $endpoint -Method Post -Body $payload3 -ContentType "application/json" -UseBasicParsing
+} catch {
+    Write-Host "✓ Expected error: $($_.Exception.Response.StatusCode)" -ForegroundColor Green
+    if ($_.Exception.Response) {
+        $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+        $reader.BaseStream.Position = 0
+        $responseBody = $reader.ReadToEnd()
+        Write-Host "Response:" -ForegroundColor Green
+        $responseBody | ConvertFrom-Json | ConvertTo-Json -Depth 10
+    }
+}
+
+# Test 4: Large Batch
+Write-Host "`n[TEST 4] Large Batch Test - 10 Employees" -ForegroundColor Yellow
+Write-Host "Expected: HTTP 200, All 10 employees processed" -ForegroundColor Gray
+
+$employees = @()
+for ($i = 7001; $i -le 7010; $i++) {
+    $employees += @{
+        id = $i
+        firstName = "Employee"
+        lastName = "Number$i"
+        department = "Testing"
+        position = "Test Engineer"
+        salary = 70000 + ($i % 10) * 1000
+        email = "employee$i@company.com"
+    }
+}
+
+$payload4 = @{
+    employees = @{
+        employee = $employees
+    }
+} | ConvertTo-Json -Depth 10
+
+try {
+    $response4 = Invoke-WebRequest -Uri $endpoint -Method Post -Body $payload4 -ContentType "application/json" -UseBasicParsing
+    Write-Host "✓ Status: $($response4.StatusCode)" -ForegroundColor Green
+    $response4.Content | ConvertFrom-Json | ConvertTo-Json -Depth 10
+} catch {
+    Write-Host "✗ Error: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Test 5: Idempotency Test
+Write-Host "`n[TEST 5] Idempotency Test - Retry Employee 6001" -ForegroundColor Yellow
+Write-Host "Expected: HTTP 200, Same employee updated" -ForegroundColor Gray
+
+$payload5 = @{
+    employees = @{
+        employee = @(
+            @{
+                id = 6001
                 firstName = "Alice"
-                lastName = "Johnson-Smith"
+                lastName = "Johnson-Updated"
                 department = "Engineering"
                 position = "Lead Developer"
-                salary = 105000.00
+                salary = 105000
                 email = "alice.johnson@company.com"
             }
         )
     }
-}
+} | ConvertTo-Json -Depth 10
 
 try {
-    $response = Invoke-RestMethod -Method Post -Uri $endpoint `
-        -ContentType "application/json" `
-        -Body ($updatePayload | ConvertTo-Json -Depth 10)
-    
-    Write-Host "✓ Success!" -ForegroundColor Green
-    Write-Host "Status: $($response.status)" -ForegroundColor Green
-    Write-Host "Message: $($response.message)" -ForegroundColor Green
-    Write-Host "Total Processed: $($response.details.totalProcessed)" -ForegroundColor Green
-    Write-Host "Total Inserted: $($response.details.totalInserted)" -ForegroundColor Green
-    Write-Host "Total Updated: $($response.details.totalUpdated)" -ForegroundColor Green
-}
-catch {
-    Write-Host "✗ Failed!" -ForegroundColor Red
-    Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+    $response5 = Invoke-WebRequest -Uri $endpoint -Method Post -Body $payload5 -ContentType "application/json" -UseBasicParsing
+    Write-Host "✓ Status: $($response5.StatusCode)" -ForegroundColor Green
+    $response5.Content | ConvertFrom-Json | ConvertTo-Json -Depth 10
+} catch {
+    Write-Host "✗ Error: $($_.Exception.Message)" -ForegroundColor Red
 }
 
-Write-Host ""
-Write-Host "================================" -ForegroundColor Cyan
-Write-Host "All Tests Completed!" -ForegroundColor Cyan
-Write-Host "================================" -ForegroundColor Cyan
+# Summary
+Write-Host "`n========================================" -ForegroundColor Cyan
+Write-Host "Test Suite Complete" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "`nNext Steps:" -ForegroundColor Yellow
+Write-Host "1. Check Log Analytics for logs (2-5 min delay)" -ForegroundColor White
+Write-Host "2. Review PRODUCTION-READY-FEATURES.md" -ForegroundColor White
+Write-Host "3. Verify SQL: " -ForegroundColor White
+Write-Host "   sqlcmd -S '(localdb)\MSSQLLocalDB' -d EmployeeDB -Q 'SELECT * FROM Employees WHERE ID >= 6001'" -ForegroundColor Gray

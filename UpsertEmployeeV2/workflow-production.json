@@ -411,7 +411,36 @@
       "When_a_HTTP_request_is_received": {
         "type": "Request",
         "kind": "Http",
-        "inputs": {}
+        "inputs": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "employees": {
+                "type": "object",
+                "properties": {
+                  "employee": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "integer" },
+                        "firstName": { "type": "string" },
+                        "lastName": { "type": "string" },
+                        "department": { "type": "string" },
+                        "position": { "type": "string" },
+                        "salary": { "type": "number" },
+                        "email": { "type": "string" }
+                      },
+                      "required": ["id", "firstName", "lastName"]
+                    }
+                  }
+                },
+                "required": ["employee"]
+              }
+            },
+            "required": ["employees"]
+          }
+        }
       }
     },
     "parameters": {
