@@ -49,10 +49,10 @@
         },
         "runAfter": { "Initialize_FailedEmployees": ["Succeeded"] }
       },
-      "Try_Process_Request": {
+      "Try": {
         "type": "Scope",
         "actions": {
-          "Check_Schema": {
+          "Parse_Request_Schema": {
             "type": "If",
             "expression": {
               "and": [
@@ -72,7 +72,7 @@
                 },
                 "runAfter": {}
               },
-              "Validate_Employees": {
+              "Loop_And_Validate_Each_Employee": {
                 "type": "Foreach",
                 "foreach": "@triggerBody()?['employees']?['employee']",
                 "actions": {
@@ -80,15 +80,15 @@
                     "type": "If",
                     "expression": {
                       "or": [
-                        { "equals": ["@items('Validate_Employees')?['id']", null] },
-                        { "lessOrEquals": ["@coalesce(items('Validate_Employees')?['id'], 0)", 0] },
+                        { "equals": ["@items('Loop_And_Validate_Each_Employee')?['id']", null] },
+                        { "lessOrEquals": ["@coalesce(items('Loop_And_Validate_Each_Employee')?['id'], 0)", 0] },
                         { "or": [
-                            { "equals": ["@items('Validate_Employees')?['firstName']", null] },
-                            { "equals": ["@trim(string(coalesce(items('Validate_Employees')?['firstName'], '')))", ""] }
+                            { "equals": ["@items('Loop_And_Validate_Each_Employee')?['firstName']", null] },
+                            { "equals": ["@trim(string(coalesce(items('Loop_And_Validate_Each_Employee')?['firstName'], '')))", ""] }
                         ]},
                         { "or": [
-                            { "equals": ["@items('Validate_Employees')?['lastName']", null] },
-                            { "equals": ["@trim(string(coalesce(items('Validate_Employees')?['lastName'], '')))", ""] }
+                            { "equals": ["@items('Loop_And_Validate_Each_Employee')?['lastName']", null] },
+                            { "equals": ["@trim(string(coalesce(items('Loop_And_Validate_Each_Employee')?['lastName'], '')))", ""] }
                         ]}
                       ]
                     },
@@ -99,20 +99,20 @@
                           "logLevel": "WARN",
                           "timestamp": "@utcNow()",
                           "message": "Employee validation failed",
-                          "employeeId": "@coalesce(items('Validate_Employees')?['id'], 'null')",
-                          "firstName": "@coalesce(items('Validate_Employees')?['firstName'], 'null')",
-                          "lastName": "@coalesce(items('Validate_Employees')?['lastName'], 'null')"
+                          "employeeId": "@coalesce(items('Loop_And_Validate_Each_Employee')?['id'], 'null')",
+                          "firstName": "@coalesce(items('Loop_And_Validate_Each_Employee')?['firstName'], 'null')",
+                          "lastName": "@coalesce(items('Loop_And_Validate_Each_Employee')?['lastName'], 'null')"
                         },
                         "runAfter": {}
                       },
-                      "Append_Error": {
+                      "Add_To_Validation_Errors": {
                         "type": "AppendToArrayVariable",
                         "inputs": {
                           "name": "ValidationErrors",
                           "value": {
-                            "id": "@coalesce(items('Validate_Employees')?['id'], 'null')",
-                            "firstName": "@coalesce(items('Validate_Employees')?['firstName'], 'null')",
-                            "lastName": "@coalesce(items('Validate_Employees')?['lastName'], 'null')",
+                            "id": "@coalesce(items('Loop_And_Validate_Each_Employee')?['id'], 'null')",
+                            "firstName": "@coalesce(items('Loop_And_Validate_Each_Employee')?['firstName'], 'null')",
+                            "lastName": "@coalesce(items('Loop_And_Validate_Each_Employee')?['lastName'], 'null')",
                             "error": "Invalid or missing required fields"
                           }
                         },
@@ -121,7 +121,7 @@
                       "Set_Error_Flag": {
                         "type": "SetVariable",
                         "inputs": { "name": "HasErrors", "value": true },
-                        "runAfter": { "Append_Error": ["Succeeded"] }
+                        "runAfter": { "Add_To_Validation_Errors": ["Succeeded"] }
                       }
                     },
                     "runAfter": {}
@@ -129,7 +129,7 @@
                 },
                 "runAfter": { "Log_Schema_Valid": ["Succeeded"] }
               },
-              "Process_Or_Error": {
+              "Check_If_Validation_Failed": {
                 "type": "If",
                 "expression": { "equals": ["@variables('HasErrors')", true] },
                 "actions": {
@@ -175,7 +175,7 @@
                       },
                       "runAfter": {}
                     },
-                    "Process_Employees": {
+                    "Loop_And_Process_Valid_Employees": {
                       "type": "Foreach",
                       "foreach": "@triggerBody()?['employees']?['employee']",
                       "actions": {
@@ -188,8 +188,8 @@
                                 "logLevel": "INFO",
                                 "timestamp": "@utcNow()",
                                 "message": "Processing employee",
-                                "employeeId": "@items('Process_Employees')?['id']",
-                                "employeeName": "@{items('Process_Employees')?['firstName']} @{items('Process_Employees')?['lastName']}"
+                                "employeeId": "@items('Loop_And_Process_Valid_Employees')?['id']",
+                                "employeeName": "@{items('Loop_And_Process_Valid_Employees')?['firstName']} @{items('Loop_And_Process_Valid_Employees')?['lastName']}"
                               },
                               "runAfter": {}
                             },
@@ -197,7 +197,7 @@
                               "type": "ServiceProvider",
                               "inputs": {
                                 "parameters": {
-                                  "query": "EXEC UpsertEmployeeSimple @ID=@{items('Process_Employees')?['id']},@FirstName='@{replace(items('Process_Employees')?['firstName'],'''','''''')}',@LastName='@{replace(items('Process_Employees')?['lastName'],'''','''''')}',@Department='@{replace(coalesce(items('Process_Employees')?['department'],''),'''','''''')}',@Position='@{replace(coalesce(items('Process_Employees')?['position'],''),'''','''''')}',@Salary=@{coalesce(items('Process_Employees')?['salary'],'NULL')},@Email='@{replace(coalesce(items('Process_Employees')?['email'],''),'''','''''')}'"
+                                  "query": "EXEC usp_Employee_Upsert @ID=@{items('Loop_And_Process_Valid_Employees')?['id']},@FirstName='@{replace(items('Loop_And_Process_Valid_Employees')?['firstName'],'''','''''')}',@LastName='@{replace(items('Loop_And_Process_Valid_Employees')?['lastName'],'''','''''')}',@Department='@{replace(coalesce(items('Loop_And_Process_Valid_Employees')?['department'],''),'''','''''')}',@Position='@{replace(coalesce(items('Loop_And_Process_Valid_Employees')?['position'],''),'''','''''')}',@Salary=@{coalesce(items('Loop_And_Process_Valid_Employees')?['salary'],'NULL')},@Email='@{replace(coalesce(items('Loop_And_Process_Valid_Employees')?['email'],''),'''','''''')}'"
                                 },
                                 "serviceProviderConfiguration": {
                                   "connectionName": "sql",
@@ -213,8 +213,8 @@
                                 "logLevel": "INFO",
                                 "timestamp": "@utcNow()",
                                 "message": "Employee upserted successfully",
-                                "employeeId": "@items('Process_Employees')?['id']",
-                                "employeeName": "@{items('Process_Employees')?['firstName']} @{items('Process_Employees')?['lastName']}"
+                                "employeeId": "@items('Loop_And_Process_Valid_Employees')?['id']",
+                                "employeeName": "@{items('Loop_And_Process_Valid_Employees')?['firstName']} @{items('Loop_And_Process_Valid_Employees')?['lastName']}"
                               },
                               "runAfter": { "Upsert_Employee": ["Succeeded"] }
                             },
@@ -235,21 +235,21 @@
                                 "logLevel": "ERROR",
                                 "timestamp": "@utcNow()",
                                 "message": "Failed to upsert employee",
-                                "employeeId": "@items('Process_Employees')?['id']",
-                                "employeeName": "@{items('Process_Employees')?['firstName']} @{items('Process_Employees')?['lastName']}",
+                                "employeeId": "@items('Loop_And_Process_Valid_Employees')?['id']",
+                                "employeeName": "@{items('Loop_And_Process_Valid_Employees')?['firstName']} @{items('Loop_And_Process_Valid_Employees')?['lastName']}",
                                 "error": "@result('Try_Upsert_Employee')?[0]?['error']",
                                 "errorMessage": "@coalesce(result('Try_Upsert_Employee')?[0]?['error']?['message'], 'Unknown error')"
                               },
                               "runAfter": {}
                             },
-                            "Append_Failed_Employee": {
+                            "Add_To_Failed_Employees": {
                               "type": "AppendToArrayVariable",
                               "inputs": {
                                 "name": "FailedEmployees",
                                 "value": {
-                                  "id": "@items('Process_Employees')?['id']",
-                                  "firstName": "@items('Process_Employees')?['firstName']",
-                                  "lastName": "@items('Process_Employees')?['lastName']",
+                                  "id": "@items('Loop_And_Process_Valid_Employees')?['id']",
+                                  "firstName": "@items('Loop_And_Process_Valid_Employees')?['firstName']",
+                                  "lastName": "@items('Loop_And_Process_Valid_Employees')?['lastName']",
                                   "error": "@coalesce(result('Try_Upsert_Employee')?[0]?['error']?['message'], 'Unknown error')",
                                   "timestamp": "@utcNow()"
                                 }
@@ -259,7 +259,7 @@
                             "Increment_FailedCount": {
                               "type": "IncrementVariable",
                               "inputs": { "name": "FailedCount", "value": 1 },
-                              "runAfter": { "Append_Failed_Employee": ["Succeeded"] }
+                              "runAfter": { "Add_To_Failed_Employees": ["Succeeded"] }
                             }
                           },
                           "runAfter": { "Try_Upsert_Employee": ["Failed", "Skipped", "TimedOut"] }
@@ -277,7 +277,7 @@
                         "totalFailed": "@variables('FailedCount')",
                         "totalRequested": "@length(triggerBody()?['employees']?['employee'])"
                       },
-                      "runAfter": { "Process_Employees": ["Succeeded", "Failed", "Skipped", "TimedOut"] }
+                      "runAfter": { "Loop_And_Process_Valid_Employees": ["Succeeded", "Failed", "Skipped", "TimedOut"] }
                     },
                     "Check_Any_Failures": {
                       "type": "If",
@@ -332,7 +332,7 @@
                     }
                   }
                 },
-                "runAfter": { "Validate_Employees": ["Succeeded"] }
+                "runAfter": { "Loop_And_Validate_Each_Employee": ["Succeeded"] }
               }
             },
             "else": {
@@ -369,42 +369,62 @@
         },
         "runAfter": { "Log_Workflow_Start": ["Succeeded"] }
       },
-      "Catch_Global_Error": {
+      "Catch": {
         "type": "Scope",
         "actions": {
-          "Log_Global_Error": {
+          "Filter_Try_Scope_Errors": {
+            "type": "Query",
+            "inputs": {
+              "from": "@result('Try')",
+              "where": "@equals(item()?['status'], 'Failed')"
+            },
+            "runAfter": {}
+          },
+          "Format_Errors": {
+            "type": "Select",
+            "inputs": {
+              "from": "@body('Filter_Try_Scope_Errors')",
+              "select": {
+                "action": "@item()?['name']",
+                "errorCode": "@item()?['code']",
+                "errorMessage": "@item()?['error']?['message']",
+                "status": "@item()?['status']"
+              }
+            },
+            "runAfter": {
+              "Filter_Try_Scope_Errors": ["Succeeded"]
+            }
+          },
+          "Log_Critical_Error": {
             "type": "Compose",
             "inputs": {
               "logLevel": "CRITICAL",
               "timestamp": "@utcNow()",
-              "message": "Unexpected workflow error occurred",
-              "error": "@result('Try_Process_Request')?[0]?['error']",
-              "errorMessage": "@coalesce(result('Try_Process_Request')?[0]?['error']?['message'], 'Unknown critical error')",
-              "requestBody": "@triggerBody()"
+              "message": "Critical error in workflow execution",
+              "errors": "@body('Format_Errors')",
+              "runId": "@workflow().run.name"
             },
-            "runAfter": {}
+            "runAfter": {
+              "Format_Errors": ["Succeeded"]
+            }
           },
-          "Return_Server_Error": {
-            "type": "Response",
-            "kind": "Http",
+          "Terminate": {
+            "type": "Terminate",
             "inputs": {
-              "statusCode": 500,
-              "body": {
-                "status": "error",
-                "code": 500,
-                "message": "An unexpected error occurred while processing the request",
-                "details": {
-                  "error": "Internal server error",
-                  "errorCode": "@coalesce(result('Try_Process_Request')?[0]?['error']?['code'], 'UNKNOWN_ERROR')"
-                },
-                "timestamp": "@utcNow()",
-                "runId": "@workflow().run.name"
+              "runStatus": "Failed",
+              "runError": {
+                "code": "500",
+                "message": "One or more errors occurred while processing the request:\n\n@{body('Format_Errors')}"
               }
             },
-            "runAfter": { "Log_Global_Error": ["Succeeded"] }
+            "runAfter": {
+              "Log_Critical_Error": ["Succeeded"]
+            }
           }
         },
-        "runAfter": { "Try_Process_Request": ["Failed", "Skipped", "TimedOut"] }
+        "runAfter": {
+          "Try": ["Failed", "Skipped", "TimedOut"]
+        }
       }
     },
     "triggers": {

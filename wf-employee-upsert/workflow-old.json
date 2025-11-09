@@ -197,7 +197,7 @@
                               "type": "ServiceProvider",
                               "inputs": {
                                 "parameters": {
-                                  "query": "EXEC UpsertEmployeeSimple @ID=@{items('Process_Employees')?['id']},@FirstName='@{replace(items('Process_Employees')?['firstName'],'''','''''')}',@LastName='@{replace(items('Process_Employees')?['lastName'],'''','''''')}',@Department='@{replace(coalesce(items('Process_Employees')?['department'],''),'''','''''')}',@Position='@{replace(coalesce(items('Process_Employees')?['position'],''),'''','''''')}',@Salary=@{coalesce(items('Process_Employees')?['salary'],'NULL')},@Email='@{replace(coalesce(items('Process_Employees')?['email'],''),'''','''''')}'"
+                                  "query": "EXEC usp_Employee_Upsert @ID=@{items('Process_Employees')?['id']},@FirstName='@{replace(items('Process_Employees')?['firstName'],'''','''''')}',@LastName='@{replace(items('Process_Employees')?['lastName'],'''','''''')}',@Department='@{replace(coalesce(items('Process_Employees')?['department'],''),'''','''''')}',@Position='@{replace(coalesce(items('Process_Employees')?['position'],''),'''','''''')}',@Salary=@{coalesce(items('Process_Employees')?['salary'],'NULL')},@Email='@{replace(coalesce(items('Process_Employees')?['email'],''),'''','''''')}'"
                                 },
                                 "serviceProviderConfiguration": {
                                   "connectionName": "sql",
@@ -411,36 +411,7 @@
       "When_a_HTTP_request_is_received": {
         "type": "Request",
         "kind": "Http",
-        "inputs": {
-          "schema": {
-            "type": "object",
-            "properties": {
-              "employees": {
-                "type": "object",
-                "properties": {
-                  "employee": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "id": { "type": "integer" },
-                        "firstName": { "type": "string" },
-                        "lastName": { "type": "string" },
-                        "department": { "type": "string" },
-                        "position": { "type": "string" },
-                        "salary": { "type": "number" },
-                        "email": { "type": "string" }
-                      },
-                      "required": ["id", "firstName", "lastName"]
-                    }
-                  }
-                },
-                "required": ["employee"]
-              }
-            },
-            "required": ["employees"]
-          }
-        }
+        "inputs": {}
       }
     },
     "parameters": {
