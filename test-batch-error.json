@@ -1,0 +1,24 @@
+{
+  "employees": {
+    "employee": [
+      {
+        "id": 501,
+        "firstName": "Good",
+        "lastName": "Employee",
+        "department": "IT",
+        "position": "Developer",
+        "salary": 75000,
+        "email": "good@example.com"
+      },
+      {
+        "id": 501,
+        "firstName": "Duplicate",
+        "lastName": "Error",
+        "department": "IT",
+        "position": "Developer",
+        "salary": 75000,
+        "email": "duplicate@example.com"
+      }
+    ]
+  }
+}

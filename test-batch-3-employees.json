@@ -1,0 +1,33 @@
+﻿{
+  "employees": {
+    "employee": [
+      {
+        "id": 101,
+        "firstName": "Alice",
+        "lastName": "Johnson",
+        "department": "Engineering",
+        "position": "Senior Developer",
+        "salary": 95000,
+        "email": "alice.j@example.com"
+      },
+      {
+        "id": 102,
+        "firstName": "Bob",
+        "lastName": "Smith",
+        "department": "Marketing",
+        "position": "Manager",
+        "salary": 85000,
+        "email": "bob.s@example.com"
+      },
+      {
+        "id": 103,
+        "firstName": "Carol",
+        "lastName": "Davis",
+        "department": "HR",
+        "position": "Director",
+        "salary": 105000,
+        "email": "carol.d@example.com"
+      }
+    ]
+  }
+}

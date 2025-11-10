@@ -1,7 +1,7 @@
 {
   "definition": {
     "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-    "contentVersion": "6.0.0.0",
+    "contentVersion": "5.1.0.0",
     "actions": {
       "Log_Workflow_Start": {
         "type": "Compose",
@@ -77,7 +77,8 @@
             "trackedProperties": {
               "logLevel": "INFO",
               "message": "Request_Validation_Success",
-              "runId": "@workflow().run.name"
+              "runId": "@workflow().run.name",
+              "employeeCount": "@length(body('Parse_And_Validate_Request')?['employees']?['employee'])"
             }
           },
           "Build_Batch_SQL_Query": {
@@ -91,7 +92,7 @@
             "type": "Select",
             "inputs": {
               "from": "@body('Parse_And_Validate_Request')?['employees']?['employee']",
-              "select": "@concat('INSERT INTO @Employees (Id, FirstName, LastName, Department, Position, Salary, Email) VALUES (', item()?['id'], ', ''', replace(item()?['firstName'], '''', ''''''), ''', ''', replace(item()?['lastName'], '''', ''''''), ''', ', if(or(equals(item()?['department'], null), equals(item()?['department'], '')), 'NULL', concat('''', replace(item()?['department'], '''', ''''''), '''')), ', ', if(or(equals(item()?['position'], null), equals(item()?['position'], '')), 'NULL', concat('''', replace(item()?['position'], '''', ''''''), '''')), ', ', if(equals(item()?['salary'], null), 'NULL', string(item()?['salary'])), ', ', if(or(equals(item()?['email'], null), equals(item()?['email'], '')), 'NULL', concat('''', replace(item()?['email'], '''', ''''''), '''')), ');')"
+              "select": "@concat('INSERT INTO @Employees (Id, FirstName, LastName, Department, Position, Salary, Email) VALUES (', item()?['id'], ', ''', replace(item()?['firstName'], '''', ''''''), ''', ''', replace(item()?['lastName'], '''', ''''''), ''', ', if(empty(item()?['department']), 'NULL', concat('''', replace(item()?['department'], '''', ''''''), '''')), ', ', if(empty(item()?['position']), 'NULL', concat('''', replace(item()?['position'], '''', ''''''), '''')), ', ', if(empty(item()?['salary']), 'NULL', string(item()?['salary'])), ', ', if(empty(item()?['email']), 'NULL', concat('''', replace(item()?['email'], '''', ''''''), '''')), ');')"
             },
             "runAfter": {
               "Parse_And_Validate_Request": ["Succeeded"]
@@ -115,13 +116,14 @@
             "trackedProperties": {
               "logLevel": "INFO",
               "message": "Executing_Batch_Upsert",
-              "runId": "@workflow().run.name"
+              "runId": "@workflow().run.name",
+              "employeeCount": "@length(body('Parse_And_Validate_Request')?['employees']?['employee'])"
             }
           },
           "Parse_SP_Result": {
             "type": "ParseJson",
             "inputs": {
-              "content": "@body('Execute_Batch_Upsert')?[0]?[0]",
+              "content": "@body('Execute_Batch_Upsert')?['resultSets']?['Table1']?[0]",
               "schema": {
                 "type": "object",
                 "properties": {
@@ -158,7 +160,11 @@
             "trackedProperties": {
               "logLevel": "INFO",
               "message": "SP_Result_Parsed",
-              "runId": "@workflow().run.name"
+              "runId": "@workflow().run.name",
+              "spStatus": "@body('Parse_SP_Result')?['Status']",
+              "totalProcessed": "@body('Parse_SP_Result')?['TotalProcessed']",
+              "totalInserted": "@body('Parse_SP_Result')?['TotalInserted']",
+              "totalUpdated": "@body('Parse_SP_Result')?['TotalUpdated']"
             }
           },
           "Check_SP_Status": {
@@ -187,7 +193,10 @@
                 "trackedProperties": {
                   "logLevel": "INFO",
                   "message": "Batch_Processing_Success",
-                  "runId": "@workflow().run.name"
+                  "runId": "@workflow().run.name",
+                  "totalProcessed": "@body('Parse_SP_Result')?['TotalProcessed']",
+                  "totalInserted": "@body('Parse_SP_Result')?['TotalInserted']",
+                  "totalUpdated": "@body('Parse_SP_Result')?['TotalUpdated']"
                 }
               },
               "Return_Success": {
@@ -238,7 +247,10 @@
                   "trackedProperties": {
                     "logLevel": "ERROR",
                     "message": "Batch_Processing_Failed_From_SP",
-                    "runId": "@workflow().run.name"
+                    "runId": "@workflow().run.name",
+                    "errorCode": "@body('Parse_SP_Result')?['ErrorCode']",
+                    "errorDetails": "@body('Parse_SP_Result')?['ErrorDetails']",
+                    "spMessage": "@body('Parse_SP_Result')?['Message']"
                   }
                 },
                 "Return_SP_Error": {
@@ -303,7 +315,10 @@
             "trackedProperties": {
               "logLevel": "ERROR",
               "message": "Workflow_Execution_Failed",
-              "runId": "@workflow().run.name"
+              "runId": "@workflow().run.name",
+              "failedAction": "@result('Try')[0]?['name']",
+              "errorCode": "@coalesce(result('Try')[0]?['code'], 'UNKNOWN')",
+              "errorMessage": "@coalesce(result('Try')[0]?['error']?['message'], 'Unknown error occurred')"
             }
           },
           "Return_Error": {
