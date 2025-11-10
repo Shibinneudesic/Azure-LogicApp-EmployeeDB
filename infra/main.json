@@ -18,21 +18,21 @@
     },
     "logicAppName": {
       "type": "string",
-      "defaultValue": "upsert-employee",
+      "defaultValue": "ais-training-la",
       "metadata": {
-        "description": "Logic App name"
+        "description": "Name of the Logic App"
       }
     },
     "storageAccountName": {
       "type": "string",
-      "defaultValue": "stshibinupsert01",
+      "defaultValue": "aistrainingshibinbf12",
       "metadata": {
         "description": "Storage account name for Logic App"
       }
     },
     "appServicePlanName": {
       "type": "string",
-      "defaultValue": "asp-shibin-upsert-dev",
+      "defaultValue": "ASP-AISTrainingShibin-b7e4",
       "metadata": {
         "description": "App Service Plan name"
       }

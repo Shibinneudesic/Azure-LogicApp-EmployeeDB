@@ -1,0 +1,50 @@
+{
+  "employees": {
+    "metadata": {
+      "processedDate": "{{ "now" | date: "%Y-%m-%dT%H:%M:%SZ" }}",
+      "source": "CSV_Import",
+      "totalCount": {{ content.employees.employee | size }},
+      "version": "1.0"
+    },
+    "employeeList": [
+      {% for employee in content.employees.employee %}
+      {
+        "employeeId": {{ employee.EMPLOYEE_ID | default: 0 }},
+        "personalInformation": {
+          "firstName": "{{ employee.FIRST_NAME | default: "" }}",
+          "lastName": "{{ employee.LAST_NAME | default: "" }}",
+          "fullName": "{{ employee.FIRST_NAME }} {{ employee.LAST_NAME }}",
+          "displayName": "{{ employee.LAST_NAME }}, {{ employee.FIRST_NAME }}"
+        },
+        "contactInformation": {
+          "email": "{{ employee.EMAIL | default: "" }}",
+          "phoneNumber": "{{ employee.PHONE_NUMBER | default: "" }}"
+        },
+        "employmentInformation": {
+          "hireDate": "{{ employee.HIRE_DATE | default: "" }}",
+          "jobId": "{{ employee.JOB_ID | default: "" }}",
+          "salary": {% if employee.SALARY %}{{ employee.SALARY }}{% else %}0{% endif %},
+          "commissionPct": "{{ employee.COMMISSION_PCT | default: "" | strip }}"
+        },
+        "organizationInformation": {
+          "managerId": {% if employee.MANAGER_ID and employee.MANAGER_ID != " - " %}{{ employee.MANAGER_ID }}{% else %}null{% endif %},
+          "departmentId": {% if employee.DEPARTMENT_ID %}{{ employee.DEPARTMENT_ID }}{% else %}null{% endif %}
+        },
+        "metadata": {
+          "importedAt": "{{ "now" | date: "%Y-%m-%dT%H:%M:%SZ" }}",
+          "status": "Active",
+          "recordType": "Employee",
+          "dataSource": "FlatFileProcessing"
+        },
+        "validation": {
+          "hasEmail": {% if employee.EMAIL %}true{% else %}false{% endif %},
+          "hasPhoneNumber": {% if employee.PHONE_NUMBER %}true{% else %}false{% endif %},
+          "hasManager": {% if employee.MANAGER_ID and employee.MANAGER_ID != " - " %}true{% else %}false{% endif %},
+          "hasDepartment": {% if employee.DEPARTMENT_ID %}true{% else %}false{% endif %},
+          "isComplete": {% if employee.EMAIL and employee.PHONE_NUMBER and employee.DEPARTMENT_ID %}true{% else %}false{% endif %}
+        }
+      }{% unless forloop.last %},{% endunless %}
+      {% endfor %}
+    ]
+  }
+}

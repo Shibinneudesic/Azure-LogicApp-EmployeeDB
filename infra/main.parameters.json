@@ -6,13 +6,19 @@
       "value": "Canada Central"
     },
     "logicAppName": {
-      "value": "upsert-employee"
+      "value": "ais-training-la"
     },
     "storageAccountName": {
-      "value": "stshibinupsert01"
+      "value": "aistrainingshibinbf12"
     },
     "appServicePlanName": {
-      "value": "asp-shibin-upsert-dev"
+      "value": "ASP-AISTrainingShibin-b7e4"
+    },
+    "logAnalyticsWorkspaceName": {
+      "value": "LAStd-UpsertEmployee-Logs"
+    },
+    "applicationInsightsName": {
+      "value": "ais-training-la"
     },
     "environment": {
       "value": "dev"

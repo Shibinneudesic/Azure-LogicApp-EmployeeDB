@@ -400,3 +400,51 @@
 2025-11-06T07:22:49.394Z 	 info: QueueGCManager:markSweepLoop() Sleep for 60000
 2025-11-06T07:22:49.395Z 	 info: AccountDataStore:init() Refresh accounts from environment variable AZURITE_ACCOUNTS with value undefined
 2025-11-06T07:22:49.395Z 	 info: AccountDataStore:init() Fallback to default emulator account devstoreaccount1.
+2025-11-09T17:36:45.570Z 	 info: Azurite Blob service is starting on 127.0.0.1:10000
+2025-11-09T17:36:45.572Z 	 info: AccountDataStore:init() Refresh accounts from environment variable AZURITE_ACCOUNTS with value undefined
+2025-11-09T17:36:45.572Z 	 info: AccountDataStore:init() Fallback to default emulator account devstoreaccount1.
+2025-11-09T17:36:45.601Z 	 info: BlobGCManager:start() Starting BlobGCManager. Set status to Initializing.
+2025-11-09T17:36:45.602Z 	 info: BlobGCManager:start() Trigger mark and sweep loop. Set status to Running.
+2025-11-09T17:36:45.602Z 	 info: BlobGCManager:markSweepLoop() Start next mark and sweep.
+2025-11-09T17:36:45.602Z 	 info: BlobGCManager:markSweep() Get all extents.
+2025-11-09T17:36:45.603Z 	 info: BlobGCManager:start() BlobGCManager successfully started.
+2025-11-09T17:36:45.615Z 	 info: BlobGCManager:markSweep() Got 1 extents.
+2025-11-09T17:36:45.616Z 	 info: BlobGCManager:markSweep() Get referred extents.
+2025-11-09T17:36:45.616Z 	 info: BlobGCManager:markSweep() Got referred extents, unreferenced extents count is 0.
+2025-11-09T17:36:45.616Z 	 info: BlobGCManager:markSweepLoop() Mark and sweep finished, taken 14ms.
+2025-11-09T17:36:45.616Z 	 info: BlobGCManager:markSweepLoop() Sleep for 600000ms.
+2025-11-09T17:36:45.622Z 	 info: Azurite Blob service successfully listens on http://127.0.0.1:10000
+2025-11-09T17:36:45.623Z 	 info: Azurite Queue service is starting on 127.0.0.1:10001
+2025-11-09T17:36:45.623Z 	 info: AccountDataStore:init() Refresh accounts from environment variable AZURITE_ACCOUNTS with value undefined
+2025-11-09T17:36:45.623Z 	 info: AccountDataStore:init() Fallback to default emulator account devstoreaccount1.
+2025-11-09T17:36:45.657Z 	 info: QueueGCManager:start() Starting QueueGCManager, set status to Initializing
+2025-11-09T17:36:45.657Z 	 info: QueueGCManager:start() Trigger mark and sweep loop, set status to Running.
+2025-11-09T17:36:45.658Z 	 info: QueueGCManager:markSweepLoop() Start new mark and sweep.
+2025-11-09T17:36:45.658Z 	 info: QueueGCManger:markSweep() Get all extents.
+2025-11-09T17:36:45.658Z 	 info: QueueGCManager:start() QueueGCManager successfully started.
+2025-11-09T17:36:45.658Z 	 info: QueueGCManager:marksweep() Get 1 extents.
+2025-11-09T17:36:45.659Z 	 info: QueueGCManager:markSweep() Get referred extents, then remove from allExtents.
+2025-11-09T17:36:45.659Z 	 info: QueueGCManager:markSweep() Got referred extents, unreferenced extents count is 0.
+2025-11-09T17:36:45.659Z 	 info: QueueGCManager:markSweepLoop() Mark and sweep finished, take 1ms.
+2025-11-09T17:36:45.659Z 	 info: QueueGCManager:markSweepLoop() Sleep for 60000
+2025-11-09T17:36:45.661Z 	 info: Azurite Queue service successfully listens on http://127.0.0.1:10001
+2025-11-09T17:36:45.662Z 	 info: Azurite Table service is starting on 127.0.0.1:10002
+2025-11-09T17:36:45.662Z 	 info: AccountDataStore:init() Refresh accounts from environment variable AZURITE_ACCOUNTS with value undefined
+2025-11-09T17:36:45.662Z 	 info: AccountDataStore:init() Fallback to default emulator account devstoreaccount1.
+2025-11-09T17:36:45.770Z 	 info: Azurite Table service successfully listens on http://127.0.0.1:10002
+2025-11-09T17:36:45.772Z 	 info: InstaceID a1079791-60f2-4288-b7cc-37c01a14e26d, SessionID 853c6efd-a28e-474a-a64b-cc6308940ab4.
+2025-11-09T17:36:45.832Z 	 info: Telemetry initialize successfully.
+2025-11-09T17:36:45.835Z 	 verbose: Send start telemetry
+2025-11-09T17:37:39.421Z 	 verbose: Send stop telemetry
+2025-11-09T17:37:39.421Z 	 info: Azurite Blob service is closing...
+2025-11-09T17:37:39.422Z 	 info: Azurite Queue service is closing...
+2025-11-09T17:37:39.422Z 	 info: Azurite Table service is closing...
+2025-11-09T17:37:39.422Z 	 info: BlobGCManager:close() Start closing BlobGCManager. Set status to Closing.
+2025-11-09T17:37:39.423Z 	 info: QueueGCManager:close() Start closing QueueGCManager, set status to Closing.
+2025-11-09T17:37:39.423Z 	 info: BlobGCManager:start() Mark and sweep loop is closed.
+2025-11-09T17:37:39.423Z 	 info: BlobGCManager:close() BlobGCManager successfully closed. Set status to Closed.
+2025-11-09T17:37:39.423Z 	 info: QueueGCManager:start() Mark and sweep loop is closed.
+2025-11-09T17:37:39.423Z 	 info: QueueGCManager:close() QueueGCManager successfully closed, set status to Closed.
+2025-11-09T17:37:39.423Z 	 info: Azurite Table service successfully closed
+2025-11-09T17:37:39.424Z 	 info: Azurite Blob service successfully closed
+2025-11-09T17:37:39.424Z 	 info: Azurite Queue service successfully closed

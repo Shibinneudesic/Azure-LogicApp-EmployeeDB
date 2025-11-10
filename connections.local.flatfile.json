@@ -1,0 +1,32 @@
+{
+  "managedApiConnections": {
+    "azurequeues": {
+      "api": {
+        "id": "/subscriptions/cbb1dbec-731f-4479-a084-bdaec5e54fd4/providers/Microsoft.Web/locations/canadacentral/managedApis/azurequeues"
+      },
+      "connection": {
+        "id": "UseDevelopmentStorage=true"
+      },
+      "connectionProperties": {
+        "authentication": {
+          "type": "Raw",
+          "scheme": "Key",
+          "parameter": "@appsetting('AzureWebJobsStorage')"
+        }
+      },
+      "connectionRuntimeUrl": "http://127.0.0.1:10001/devstoreaccount1"
+    }
+  },
+  "serviceProviderConnections": {
+    "FileSystem": {
+      "parameterValues": {
+        "rootFolder": "c:\\Repo\\AITTrainings\\LogicApps\\UpsertEmployee\\UpsertEmployee\\TestFiles",
+        "authentication": "None"
+      },
+      "serviceProvider": {
+        "id": "/serviceProviders/FileSystem"
+      },
+      "displayName": "FileSystem-Local"
+    }
+  }
+}

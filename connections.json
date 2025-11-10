@@ -1,5 +1,18 @@
 {
-  "managedApiConnections": {},
+  "managedApiConnections": {
+    "azurequeues": {
+      "api": {
+        "id": "/subscriptions/cbb1dbec-731f-4479-a084-bdaec5e54fd4/providers/Microsoft.Web/locations/canadacentral/managedApis/azurequeues"
+      },
+      "connection": {
+        "id": "/subscriptions/cbb1dbec-731f-4479-a084-bdaec5e54fd4/resourceGroups/AIS_Training_Shibin/providers/Microsoft.Web/connections/azurequeues"
+      },
+      "connectionRuntimeUrl": "https://canadacentral.logic.azure.com:443/subscriptions/cbb1dbec-731f-4479-a084-bdaec5e54fd4/resourceGroups/AIS_Training_Shibin/providers/Microsoft.Web/connections/azurequeues",
+      "authentication": {
+        "type": "ManagedServiceIdentity"
+      }
+    }
+  },
   "serviceProviderConnections": {
     "sql": {
       "parameterValues": {
@@ -19,6 +32,28 @@
         "id": "/serviceProviders/azureloganalyticsdatacollector"
       },
       "displayName": "azureloganalyticsdatacollector"
+    },
+    "serviceBus": {
+      "parameterValues": {
+        "connectionString": "@appsetting('SERVICE_BUS_CONNECTION_STRING')"
+      },
+      "serviceProvider": {
+        "id": "/serviceProviders/serviceBus"
+      },
+      "displayName": "serviceBus"
+    },
+    "FileSystem": {
+      "parameterValues": {
+        "rootFolder": "C:\\EmployeeFiles",
+        "authentication": "Windows",
+        "username": "@appsetting('ONPREMISE_FILE_USERNAME')",
+        "password": "@appsetting('ONPREMISE_FILE_PASSWORD')",
+        "gateway": "@appsetting('ONPREMISE_GATEWAY_ID')"
+      },
+      "serviceProvider": {
+        "id": "/serviceProviders/FileSystem"
+      },
+      "displayName": "FileSystem"
     }
   }
 }
