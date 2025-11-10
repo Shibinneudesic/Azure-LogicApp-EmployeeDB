@@ -3,7 +3,7 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$LogicAppName = "upsert-employee",
+    [string]$LogicAppName = "ais-training-la",
     
     [Parameter(Mandatory=$false)]
     [string]$ResourceGroup = "AIS_Training_Shibin",
@@ -88,8 +88,8 @@ Write-Host ""
 
 # Step 6: Check workflow configuration
 Write-Host "Step 6: Verifying workflow configuration..." -ForegroundColor Yellow
-if (Test-Path "UpsertEmployee/workflow.json") {
-    $workflow = Get-Content "UpsertEmployee/workflow.json" -Raw
+if (Test-Path "wf-employee-upsert/workflow.json") {
+    $workflow = Get-Content "wf-employee-upsert/workflow.json" -Raw
     if ($workflow -match 'EXEC (\w+)\s') {
         Write-Host "✓ Stored Procedure: $($Matches[1])" -ForegroundColor Green
     }

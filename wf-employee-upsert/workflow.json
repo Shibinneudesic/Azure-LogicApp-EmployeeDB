@@ -44,140 +44,162 @@
           "logLevel": "INFO",
           "timestamp": "@utcNow()",
           "message": "Workflow execution started",
+          "workflowName": "@workflow().name",
           "runId": "@workflow().run.name",
-          "requestCount": "@length(coalesce(triggerBody()?['employees']?['employee'], createArray()))"
+          "correlationId": "@workflow().run.id",
+          "requestCount": "@length(coalesce(triggerBody()?['employees']?['employee'], createArray()))",
+          "requestSize": "@length(string(triggerBody()))",
+          "hasRequestBody": "@not(empty(triggerBody()))"
         },
         "runAfter": { "Initialize_FailedEmployees": ["Succeeded"] }
       },
       "Try": {
         "type": "Scope",
         "actions": {
-          "Parse_Request_Schema": {
-            "type": "If",
-            "expression": {
-              "and": [
-                { "not": { "equals": ["@triggerBody()?['employees']", null] } },
-                { "not": { "equals": ["@triggerBody()?['employees']?['employee']", null] } },
-                { "greater": ["@length(triggerBody()?['employees']?['employee'])", 0] }
-              ]
+          "Parse_And_Validate_Request": {
+            "type": "ParseJson",
+            "inputs": {
+              "content": "@triggerBody()",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "employees": {
+                    "type": "object",
+                    "properties": {
+                      "employee": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer",
+                              "minimum": 1
+                            },
+                            "firstName": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "lastName": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "department": {
+                              "type": ["string", "null"]
+                            },
+                            "position": {
+                              "type": ["string", "null"]
+                            },
+                            "salary": {
+                              "type": ["number", "null"]
+                            },
+                            "email": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": ["id", "firstName", "lastName"]
+                        }
+                      }
+                    },
+                    "required": ["employee"]
+                  }
+                },
+                "required": ["employees"]
+              }
             },
+            "runAfter": {}
+          },
+          "Handle_Schema_Validation_Failure": {
+            "type": "Scope",
             "actions": {
-              "Log_Schema_Valid": {
+              "Log_Schema_Validation_Error": {
+                "type": "Compose",
+                "inputs": {
+                  "logLevel": "ERROR",
+                  "timestamp": "@utcNow()",
+                  "message": "JSON schema validation failed",
+                  "workflowName": "@workflow().name",
+                  "runId": "@workflow().run.name",
+                  "correlationId": "@workflow().run.id",
+                  "actionName": "Parse_And_Validate_Request",
+                  "errorCode": "SchemaValidationFailed",
+                  "errorMessage": "Request does not match expected schema",
+                  "requestBodySize": "@length(string(triggerBody()))",
+                  "requestBodyPreview": "@if(greater(length(string(triggerBody())), 500), concat(substring(string(triggerBody()), 0, 500), '... [truncated]'), string(triggerBody()))",
+                  "validationFailureReason": "Request does not match expected schema structure or field requirements"
+                },
+                "runAfter": {}
+              },
+              "Return_Schema_Validation_Error": {
+                "type": "Response",
+                "kind": "Http",
+                "inputs": {
+                  "statusCode": 400,
+                  "body": {
+                    "status": "error",
+                    "code": 400,
+                    "message": "Request validation failed. Please check the request structure and field requirements.",
+                    "details": {
+                      "errorType": "SchemaValidationError",
+                      "description": "The request must include: { employees: { employee: [array] } }. Each employee must have: id (positive integer), firstName (non-empty string), lastName (non-empty string). Optional fields: department, position, salary, email.",
+                      "error": "Schema validation failed"
+                    },
+                    "timestamp": "@utcNow()",
+                    "runId": "@workflow().run.name"
+                  }
+                },
+                "runAfter": {
+                  "Log_Schema_Validation_Error": ["Succeeded"]
+                }
+              }
+            },
+            "runAfter": {
+              "Parse_And_Validate_Request": ["Failed", "Skipped", "TimedOut"]
+            }
+          },
+          "Log_Schema_Valid": {
+            "type": "Compose",
+            "inputs": {
+              "logLevel": "INFO",
+              "timestamp": "@utcNow()",
+              "message": "Request schema validation passed",
+              "workflowName": "@workflow().name",
+              "runId": "@workflow().run.name",
+              "correlationId": "@workflow().run.id",
+              "employeeCount": "@length(body('Parse_And_Validate_Request')?['employees']?['employee'])",
+              "employeeIds": "@join(body('Parse_And_Validate_Request')?['employees']?['employee'], ', ')",
+              "validationDuration": "@formatDateTime(utcNow(), 'o')",
+              "schemaVersion": "employee-upsert-v1.0",
+              "allRequiredFieldsPresent": true
+            },
+            "runAfter": {
+              "Parse_And_Validate_Request": ["Succeeded"]
+            }
+          },
+          "Process_Valid_Employees": {
+            "type": "Scope",
+            "actions": {
+              "Log_Starting_Processing": {
                 "type": "Compose",
                 "inputs": {
                   "logLevel": "INFO",
                   "timestamp": "@utcNow()",
-                  "message": "Request schema validation passed",
-                  "employeeCount": "@length(triggerBody()?['employees']?['employee'])"
+                  "message": "Starting employee processing",
+                  "workflowName": "@workflow().name",
+                  "runId": "@workflow().run.name",
+                  "correlationId": "@workflow().run.id",
+                  "employeeCount": "@length(body('Parse_And_Validate_Request')?['employees']?['employee'])",
+                  "employeeIdList": "@string(json(concat('[', join(body('Parse_And_Validate_Request')?['employees']?['employee'], ','), ']')))",
+                  "processingMode": "Batch",
+                  "targetDatabase": "SQL Server",
+                  "operation": "Upsert (Insert/Update)",
+                  "estimatedDuration": "@concat(mul(length(body('Parse_And_Validate_Request')?['employees']?['employee']), 2), ' seconds')"
                 },
                 "runAfter": {}
               },
-              "Loop_And_Validate_Each_Employee": {
+              "Loop_And_Process_Valid_Employees": {
                 "type": "Foreach",
-                "foreach": "@triggerBody()?['employees']?['employee']",
-                "actions": {
-                  "Check_Fields": {
-                    "type": "If",
-                    "expression": {
-                      "or": [
-                        { "equals": ["@items('Loop_And_Validate_Each_Employee')?['id']", null] },
-                        { "lessOrEquals": ["@coalesce(items('Loop_And_Validate_Each_Employee')?['id'], 0)", 0] },
-                        { "or": [
-                            { "equals": ["@items('Loop_And_Validate_Each_Employee')?['firstName']", null] },
-                            { "equals": ["@trim(string(coalesce(items('Loop_And_Validate_Each_Employee')?['firstName'], '')))", ""] }
-                        ]},
-                        { "or": [
-                            { "equals": ["@items('Loop_And_Validate_Each_Employee')?['lastName']", null] },
-                            { "equals": ["@trim(string(coalesce(items('Loop_And_Validate_Each_Employee')?['lastName'], '')))", ""] }
-                        ]}
-                      ]
-                    },
-                    "actions": {
-                      "Log_Validation_Error": {
-                        "type": "Compose",
-                        "inputs": {
-                          "logLevel": "WARN",
-                          "timestamp": "@utcNow()",
-                          "message": "Employee validation failed",
-                          "employeeId": "@coalesce(items('Loop_And_Validate_Each_Employee')?['id'], 'null')",
-                          "firstName": "@coalesce(items('Loop_And_Validate_Each_Employee')?['firstName'], 'null')",
-                          "lastName": "@coalesce(items('Loop_And_Validate_Each_Employee')?['lastName'], 'null')"
-                        },
-                        "runAfter": {}
-                      },
-                      "Add_To_Validation_Errors": {
-                        "type": "AppendToArrayVariable",
-                        "inputs": {
-                          "name": "ValidationErrors",
-                          "value": {
-                            "id": "@coalesce(items('Loop_And_Validate_Each_Employee')?['id'], 'null')",
-                            "firstName": "@coalesce(items('Loop_And_Validate_Each_Employee')?['firstName'], 'null')",
-                            "lastName": "@coalesce(items('Loop_And_Validate_Each_Employee')?['lastName'], 'null')",
-                            "error": "Invalid or missing required fields"
-                          }
-                        },
-                        "runAfter": { "Log_Validation_Error": ["Succeeded"] }
-                      },
-                      "Set_Error_Flag": {
-                        "type": "SetVariable",
-                        "inputs": { "name": "HasErrors", "value": true },
-                        "runAfter": { "Add_To_Validation_Errors": ["Succeeded"] }
-                      }
-                    },
-                    "runAfter": {}
-                  }
-                },
-                "runAfter": { "Log_Schema_Valid": ["Succeeded"] }
-              },
-              "Check_If_Validation_Failed": {
-                "type": "If",
-                "expression": { "equals": ["@variables('HasErrors')", true] },
-                "actions": {
-                  "Log_Returning_Validation_Error": {
-                    "type": "Compose",
-                    "inputs": {
-                      "logLevel": "ERROR",
-                      "timestamp": "@utcNow()",
-                      "message": "Returning validation error response",
-                      "errorCount": "@length(variables('ValidationErrors'))"
-                    },
-                    "runAfter": {}
-                  },
-                  "Return_Validation_Error": {
-                    "type": "Response",
-                    "kind": "Http",
-                    "inputs": {
-                      "statusCode": 400,
-                      "body": {
-                        "status": "error",
-                        "code": 400,
-                        "message": "Employee validation failed",
-                        "details": { 
-                          "errors": "@variables('ValidationErrors')",
-                          "totalErrors": "@length(variables('ValidationErrors'))"
-                        },
-                        "timestamp": "@utcNow()",
-                        "runId": "@workflow().run.name"
-                      }
-                    },
-                    "runAfter": { "Log_Returning_Validation_Error": ["Succeeded"] }
-                  }
-                },
-                "else": {
-                  "actions": {
-                    "Log_Starting_Processing": {
-                      "type": "Compose",
-                      "inputs": {
-                        "logLevel": "INFO",
-                        "timestamp": "@utcNow()",
-                        "message": "Starting employee processing",
-                        "employeeCount": "@length(triggerBody()?['employees']?['employee'])"
-                      },
-                      "runAfter": {}
-                    },
-                    "Loop_And_Process_Valid_Employees": {
-                      "type": "Foreach",
-                      "foreach": "@triggerBody()?['employees']?['employee']",
+                "foreach": "@body('Parse_And_Validate_Request')?['employees']?['employee']",
                       "actions": {
                         "Try_Upsert_Employee": {
                           "type": "Scope",
@@ -187,9 +209,23 @@
                               "inputs": {
                                 "logLevel": "INFO",
                                 "timestamp": "@utcNow()",
-                                "message": "Processing employee",
+                                "message": "Processing employee upsert",
+                                "workflowName": "@workflow().name",
+                                "runId": "@workflow().run.name",
+                                "correlationId": "@workflow().run.id",
                                 "employeeId": "@items('Loop_And_Process_Valid_Employees')?['id']",
-                                "employeeName": "@{items('Loop_And_Process_Valid_Employees')?['firstName']} @{items('Loop_And_Process_Valid_Employees')?['lastName']}"
+                                "employeeName": "@{items('Loop_And_Process_Valid_Employees')?['firstName']} @{items('Loop_And_Process_Valid_Employees')?['lastName']}",
+                                "employeeData": {
+                                  "id": "@items('Loop_And_Process_Valid_Employees')?['id']",
+                                  "firstName": "@items('Loop_And_Process_Valid_Employees')?['firstName']",
+                                  "lastName": "@items('Loop_And_Process_Valid_Employees')?['lastName']",
+                                  "department": "@coalesce(items('Loop_And_Process_Valid_Employees')?['department'], 'Not Provided')",
+                                  "position": "@coalesce(items('Loop_And_Process_Valid_Employees')?['position'], 'Not Provided')",
+                                  "salary": "@coalesce(string(items('Loop_And_Process_Valid_Employees')?['salary']), 'Not Provided')",
+                                  "email": "@coalesce(items('Loop_And_Process_Valid_Employees')?['email'], 'Not Provided')"
+                                },
+                                "operation": "Executing stored procedure usp_Employee_Upsert",
+                                "currentProgress": "@{add(variables('ProcessedCount'), variables('FailedCount'))} of @{length(body('Parse_And_Validate_Request')?['employees']?['employee'])}"
                               },
                               "runAfter": {}
                             },
@@ -213,8 +249,16 @@
                                 "logLevel": "INFO",
                                 "timestamp": "@utcNow()",
                                 "message": "Employee upserted successfully",
+                                "workflowName": "@workflow().name",
+                                "runId": "@workflow().run.name",
+                                "correlationId": "@workflow().run.id",
                                 "employeeId": "@items('Loop_And_Process_Valid_Employees')?['id']",
-                                "employeeName": "@{items('Loop_And_Process_Valid_Employees')?['firstName']} @{items('Loop_And_Process_Valid_Employees')?['lastName']}"
+                                "employeeName": "@{items('Loop_And_Process_Valid_Employees')?['firstName']} @{items('Loop_And_Process_Valid_Employees')?['lastName']}",
+                                "actionName": "Upsert_Employee",
+                                "actionStatus": "Succeeded",
+                                "databaseResponse": "@body('Upsert_Employee')",
+                                "sqlOperation": "usp_Employee_Upsert",
+                                "successCount": "@add(variables('ProcessedCount'), 1)"
                               },
                               "runAfter": { "Upsert_Employee": ["Succeeded"] }
                             },
@@ -235,10 +279,22 @@
                                 "logLevel": "ERROR",
                                 "timestamp": "@utcNow()",
                                 "message": "Failed to upsert employee",
+                                "workflowName": "@workflow().name",
+                                "runId": "@workflow().run.name",
+                                "correlationId": "@workflow().run.id",
                                 "employeeId": "@items('Loop_And_Process_Valid_Employees')?['id']",
                                 "employeeName": "@{items('Loop_And_Process_Valid_Employees')?['firstName']} @{items('Loop_And_Process_Valid_Employees')?['lastName']}",
-                                "error": "@result('Try_Upsert_Employee')?[0]?['error']",
-                                "errorMessage": "@coalesce(result('Try_Upsert_Employee')?[0]?['error']?['message'], 'Unknown error')"
+                                "employeeData": "@items('Loop_And_Process_Valid_Employees')",
+                                "actionName": "Upsert_Employee",
+                                "actionStatus": "@result('Try_Upsert_Employee')?[0]?['status']",
+                                "errorCode": "@result('Try_Upsert_Employee')?[0]?['code']",
+                                "errorMessage": "@coalesce(result('Try_Upsert_Employee')?[0]?['error']?['message'], 'Unknown error')",
+                                "errorDetails": "@result('Try_Upsert_Employee')?[0]?['error']",
+                                "sqlQuery": "EXEC usp_Employee_Upsert with parameters",
+                                "failureType": "@if(equals(result('Try_Upsert_Employee')?[0]?['status'], 'TimedOut'), 'Timeout', if(equals(result('Try_Upsert_Employee')?[0]?['status'], 'Failed'), 'DatabaseError', 'Unknown'))",
+                                "retryable": "@contains(string(result('Try_Upsert_Employee')?[0]?['error']?['message']), 'timeout')",
+                                "failedCount": "@add(variables('FailedCount'), 1)",
+                                "troubleshooting": "Check database connectivity, SQL query syntax, and employee data validity"
                               },
                               "runAfter": {}
                             },
@@ -265,106 +321,130 @@
                           "runAfter": { "Try_Upsert_Employee": ["Failed", "Skipped", "TimedOut"] }
                         }
                       },
-                      "runAfter": { "Log_Starting_Processing": ["Succeeded"] }
+                "runAfter": { "Log_Starting_Processing": ["Succeeded"] }
+              },
+              "Log_Processing_Complete": {
+                "type": "Compose",
+                "inputs": {
+                  "logLevel": "INFO",
+                  "timestamp": "@utcNow()",
+                  "message": "Employee processing completed",
+                  "workflowName": "@workflow().name",
+                  "runId": "@workflow().run.name",
+                  "correlationId": "@workflow().run.id",
+                  "totalRequested": "@length(body('Parse_And_Validate_Request')?['employees']?['employee'])",
+                  "totalProcessed": "@variables('ProcessedCount')",
+                  "totalFailed": "@variables('FailedCount')",
+                  "successRate": "@concat(string(div(mul(variables('ProcessedCount'), 100), length(body('Parse_And_Validate_Request')?['employees']?['employee']))), '%')",
+                  "failureRate": "@concat(string(div(mul(variables('FailedCount'), 100), length(body('Parse_And_Validate_Request')?['employees']?['employee']))), '%')",
+                  "processingStatus": "@if(equals(variables('FailedCount'), 0), 'All Success', if(equals(variables('ProcessedCount'), 0), 'All Failed', 'Partial Success'))",
+                  "failedEmployeeIds": "@if(greater(length(variables('FailedEmployees')), 0), join(body('Parse_And_Validate_Request')?['employees']?['employee'], ', '), 'None')",
+                  "executionEndTime": "@utcNow()",
+                  "totalDuration": "@formatDateTime(utcNow(), 'o')"
+                },
+                "runAfter": { "Loop_And_Process_Valid_Employees": ["Succeeded", "Failed", "Skipped", "TimedOut"] }
+              },
+              "Check_Any_Failures": {
+                "type": "If",
+                "expression": { "greater": ["@variables('FailedCount')", 0] },
+                "actions": {
+                  "Log_Partial_Success": {
+                    "type": "Compose",
+                    "inputs": {
+                      "logLevel": "WARN",
+                      "timestamp": "@utcNow()",
+                      "message": "Partial success - Some employees failed to process",
+                      "workflowName": "@workflow().name",
+                      "runId": "@workflow().run.name",
+                      "correlationId": "@workflow().run.id",
+                      "responseCode": 207,
+                      "totalRequested": "@length(body('Parse_And_Validate_Request')?['employees']?['employee'])",
+                      "successfulOperations": "@variables('ProcessedCount')",
+                      "failedOperations": "@variables('FailedCount')",
+                      "successRate": "@concat(string(div(mul(variables('ProcessedCount'), 100), length(body('Parse_And_Validate_Request')?['employees']?['employee']))), '%')",
+                      "failedEmployeesCount": "@length(variables('FailedEmployees'))",
+                      "failedEmployeeIds": "@string(variables('FailedEmployees'))",
+                      "recommendedAction": "Review failed employees and retry individually"
                     },
-                    "Log_Processing_Complete": {
+                    "runAfter": {}
+                  },
+                  "Return_Partial_Success": {
+                    "type": "Response",
+                    "kind": "Http",
+                    "inputs": {
+                      "statusCode": 207,
+                      "body": {
+                        "status": "partial_success",
+                        "code": 207,
+                        "message": "Some employees processed successfully, others failed",
+                        "details": {
+                          "totalRequested": "@length(body('Parse_And_Validate_Request')?['employees']?['employee'])",
+                          "successfulOperations": "@variables('ProcessedCount')",
+                          "failedOperations": "@variables('FailedCount')",
+                          "successRate": "@concat(string(div(mul(variables('ProcessedCount'), 100), length(body('Parse_And_Validate_Request')?['employees']?['employee']))), '%')",
+                          "failedEmployees": "@variables('FailedEmployees')"
+                        },
+                        "timestamp": "@utcNow()",
+                        "runId": "@workflow().run.name",
+                        "correlationId": "@workflow().run.id"
+                      }
+                    },
+                    "runAfter": {
+                      "Log_Partial_Success": ["Succeeded"]
+                    }
+                  }
+                },
+                "else": {
+                  "actions": {
+                    "Log_Complete_Success": {
                       "type": "Compose",
                       "inputs": {
                         "logLevel": "INFO",
                         "timestamp": "@utcNow()",
-                        "message": "Employee processing completed",
+                        "message": "All employees processed successfully - 100% success rate",
+                        "workflowName": "@workflow().name",
+                        "runId": "@workflow().run.name",
+                        "correlationId": "@workflow().run.id",
+                        "responseCode": 200,
                         "totalProcessed": "@variables('ProcessedCount')",
-                        "totalFailed": "@variables('FailedCount')",
-                        "totalRequested": "@length(triggerBody()?['employees']?['employee'])"
+                        "requestedCount": "@length(body('Parse_And_Validate_Request')?['employees']?['employee'])",
+                        "successRate": "100%",
+                        "failureCount": 0,
+                        "executionEndTime": "@utcNow()"
                       },
-                      "runAfter": { "Loop_And_Process_Valid_Employees": ["Succeeded", "Failed", "Skipped", "TimedOut"] }
+                      "runAfter": {}
                     },
-                    "Check_Any_Failures": {
-                      "type": "If",
-                      "expression": { "greater": ["@variables('FailedCount')", 0] },
-                      "actions": {
-                        "Return_Partial_Success": {
-                          "type": "Response",
-                          "kind": "Http",
-                          "inputs": {
-                            "statusCode": 207,
-                            "body": {
-                              "status": "partial_success",
-                              "code": 207,
-                              "message": "Some employees processed successfully, others failed",
-                              "details": {
-                                "totalRequested": "@length(triggerBody()?['employees']?['employee'])",
-                                "successfulOperations": "@variables('ProcessedCount')",
-                                "failedOperations": "@variables('FailedCount')",
-                                "failedEmployees": "@variables('FailedEmployees')"
-                              },
-                              "timestamp": "@utcNow()",
-                              "runId": "@workflow().run.name"
-                            }
+                    "Return_Success": {
+                      "type": "Response",
+                      "kind": "Http",
+                      "inputs": {
+                        "statusCode": 200,
+                        "body": {
+                          "status": "success",
+                          "code": 200,
+                          "message": "All employees processed successfully",
+                          "details": {
+                            "totalProcessed": "@variables('ProcessedCount')",
+                            "requestedCount": "@length(body('Parse_And_Validate_Request')?['employees']?['employee'])",
+                            "successRate": "100%"
                           },
-                          "runAfter": {}
+                          "timestamp": "@utcNow()",
+                          "runId": "@workflow().run.name",
+                          "correlationId": "@workflow().run.id"
                         }
                       },
-                      "else": {
-                        "actions": {
-                          "Return_Success": {
-                            "type": "Response",
-                            "kind": "Http",
-                            "inputs": {
-                              "statusCode": 200,
-                              "body": {
-                                "status": "success",
-                                "code": 200,
-                                "message": "All employees processed successfully",
-                                "details": {
-                                  "totalProcessed": "@variables('ProcessedCount')",
-                                  "requestedCount": "@length(triggerBody()?['employees']?['employee'])"
-                                },
-                                "timestamp": "@utcNow()",
-                                "runId": "@workflow().run.name"
-                              }
-                            },
-                            "runAfter": {}
-                          }
-                        }
-                      },
-                      "runAfter": { "Log_Processing_Complete": ["Succeeded"] }
+                      "runAfter": {
+                        "Log_Complete_Success": ["Succeeded"]
+                      }
                     }
                   }
                 },
-                "runAfter": { "Loop_And_Validate_Each_Employee": ["Succeeded"] }
+                "runAfter": { "Log_Processing_Complete": ["Succeeded"] }
               }
             },
-            "else": {
-              "actions": {
-                "Log_Schema_Invalid": {
-                  "type": "Compose",
-                  "inputs": {
-                    "logLevel": "ERROR",
-                    "timestamp": "@utcNow()",
-                    "message": "Request schema validation failed",
-                    "requestBody": "@triggerBody()"
-                  },
-                  "runAfter": {}
-                },
-                "Return_Schema_Error": {
-                  "type": "Response",
-                  "kind": "Http",
-                  "inputs": {
-                    "statusCode": 400,
-                    "body": {
-                      "status": "error",
-                      "code": 400,
-                      "message": "Invalid request structure. Expected: { employees: { employee: [array] } }",
-                      "timestamp": "@utcNow()",
-                      "runId": "@workflow().run.name"
-                    }
-                  },
-                  "runAfter": { "Log_Schema_Invalid": ["Succeeded"] }
-                }
-              }
-            },
-            "runAfter": {}
+            "runAfter": {
+              "Log_Schema_Valid": ["Succeeded"]
+            }
           }
         },
         "runAfter": { "Log_Workflow_Start": ["Succeeded"] }
@@ -400,9 +480,21 @@
             "inputs": {
               "logLevel": "CRITICAL",
               "timestamp": "@utcNow()",
-              "message": "Critical error in workflow execution",
-              "errors": "@body('Format_Errors')",
-              "runId": "@workflow().run.name"
+              "message": "Critical error in workflow execution - Workflow terminated",
+              "workflowName": "@workflow().name",
+              "runId": "@workflow().run.name",
+              "correlationId": "@workflow().run.id",
+              "failureTime": "@utcNow()",
+              "failedScope": "Try",
+              "failedActions": "@body('Format_Errors')",
+              "errorCount": "@length(body('Format_Errors'))",
+              "firstError": "@if(greater(length(body('Format_Errors')), 0), body('Format_Errors')[0], null)",
+              "errorMessage": "@join(body('Format_Errors'), '; ')",
+              "requestBodySize": "@length(string(triggerBody()))",
+              "impactedEmployees": "@length(coalesce(triggerBody()?['employees']?['employee'], createArray()))",
+              "recoveryAction": "Review error details, fix issues, and retry the request",
+              "alertSeverity": "High",
+              "requiresInvestigation": true
             },
             "runAfter": {
               "Format_Errors": ["Succeeded"]

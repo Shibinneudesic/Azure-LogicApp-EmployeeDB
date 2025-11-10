@@ -1,0 +1,8 @@
+<step title="BackgroundTrace" date="2025-11-10T10:00:02.962" instance="8a3afa" url="synctriggers-operation" method="POST" >
+  <step title="Updating shutdown sentinel last write time" date="2025-11-10T10:00:02.993" SemaphoreCount="6" /><!-- duration: 16ms -->
+  <step title="Delaying &apos;00:01:00&apos; for Functions site to restart." date="2025-11-10T10:00:03.024" /><!-- duration: 16ms -->
+  <step title="Begin HttpPost https://ais-training-la-b9fmb9f3bma5b6bb.canadacentral-01.azurewebsites.net/admin/host/synctriggers, x-ms-request-id: cd462baa-7c89-4482-9f01-21884dd7e0ee" date="2025-11-10T10:01:03.090" /><!-- duration: 47ms -->
+  <step title="End HttpPost, status: OK" date="2025-11-10T10:01:03.371" /><!-- duration: 31ms -->
+  <step title="Syncing function triggers by calling the functions runtime site successful." date="2025-11-10T10:01:03.418" /><!-- duration: 31ms -->
+  <step title="Deleting shutdown sentinel file" date="2025-11-10T10:01:03.496" SemaphoreCount="8" /><!-- duration: 31ms -->
+</step><!-- duration: 60581ms -->
