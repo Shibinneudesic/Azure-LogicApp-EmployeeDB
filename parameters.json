@@ -1,0 +1,12 @@
+{
+  "azurequeues-ConnectionRuntimeUrl": {
+    "type": "String",
+    "value": "@appsetting('azurequeues-ConnectionRuntimeUrl')"
+  },
+  "azurequeues-Authentication": {
+    "type": "Object",
+    "value": {
+      "type": "ManagedServiceIdentity"
+    }
+  }
+}

@@ -1,0 +1,34 @@
+﻿[
+  {
+    "endIpAddress": "0.0.0.0",
+    "id": "/subscriptions/cbb1dbec-731f-4479-a084-bdaec5e54fd4/resourceGroups/AIS_Training_Shibin/providers/Microsoft.Sql/servers/aistrainingserver/firewallRules/AllowAzureServices",
+    "name": "AllowAzureServices",
+    "resourceGroup": "AIS_Training_Shibin",
+    "startIpAddress": "0.0.0.0",
+    "type": "Microsoft.Sql/servers/firewallRules"
+  },
+  {
+    "endIpAddress": "20.116.255.255",
+    "id": "/subscriptions/cbb1dbec-731f-4479-a084-bdaec5e54fd4/resourceGroups/AIS_Training_Shibin/providers/Microsoft.Sql/servers/aistrainingserver/firewallRules/Azure-LogicApps-CanadaCentral",
+    "name": "Azure-LogicApps-CanadaCentral",
+    "resourceGroup": "AIS_Training_Shibin",
+    "startIpAddress": "20.116.0.0",
+    "type": "Microsoft.Sql/servers/firewallRules"
+  },
+  {
+    "endIpAddress": "8.29.231.52",
+    "id": "/subscriptions/cbb1dbec-731f-4479-a084-bdaec5e54fd4/resourceGroups/AIS_Training_Shibin/providers/Microsoft.Sql/servers/aistrainingserver/firewallRules/ClientIPAddress_2025-11-5_14-3-24",
+    "name": "ClientIPAddress_2025-11-5_14-3-24",
+    "resourceGroup": "AIS_Training_Shibin",
+    "startIpAddress": "8.29.231.52",
+    "type": "Microsoft.Sql/servers/firewallRules"
+  },
+  {
+    "endIpAddress": "20.116.235.42",
+    "id": "/subscriptions/cbb1dbec-731f-4479-a084-bdaec5e54fd4/resourceGroups/AIS_Training_Shibin/providers/Microsoft.Sql/servers/aistrainingserver/firewallRules/LogicApp-UpsertEmployee",
+    "name": "LogicApp-UpsertEmployee",
+    "resourceGroup": "AIS_Training_Shibin",
+    "startIpAddress": "20.116.235.42",
+    "type": "Microsoft.Sql/servers/firewallRules"
+  }
+]
