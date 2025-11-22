@@ -1,0 +1,5 @@
+{
+  "fileName": "employees.csv",
+  "fileContent": "EmpID,FirstName,LastName,Department,Salary\n1001,John,Doe,Engineering,75000\n1002,Jane,Smith,Marketing,65000\n1003,Bob,Johnson,Sales,70000\n1004,Alice,Williams,HR,60000\n1005,Charlie,Brown,Engineering,80000"
+}
+

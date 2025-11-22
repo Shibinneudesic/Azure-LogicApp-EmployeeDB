@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:b="http://schemas.microsoft.com/BizTalk/2003"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://EmployeeCSV.Schema"
+           xmlns:ns0="http://EmployeeCSV.Schema">
+
+  <xs:annotation>
+    <xs:appinfo>
+      <b:schemaInfo standard="Flat File" root_reference="Employees"/>
+    </xs:appinfo>
+  </xs:annotation>
+
+  <xs:element name="Employees">
+    <xs:annotation>
+      <xs:appinfo>
+        <b:recordInfo structure="delimited"
+                      child_delimiter_type="hex"
+                      child_delimiter="0x0D 0x0A"
+                      child_order="postfix"/>
+      </xs:appinfo>
+    </xs:annotation>
+
+    <xs:complexType>
+      <xs:sequence>
+
+        <!-- HEADER -->
+        <xs:element name="Header" minOccurs="1" maxOccurs="1">
+          <xs:annotation>
+            <xs:appinfo>
+              <b:recordInfo structure="delimited"
+                            child_delimiter_type="char"
+                            child_delimiter=","
+                            child_order="infix"
+                            sequence_number="1"/>
+            </xs:appinfo>
+          </xs:annotation>
+
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="EMPLOYEE_ID" type="xs:string">
+                <xs:annotation><xs:appinfo><b:fieldInfo sequence_number="1"/></xs:appinfo></xs:annotation>
+              </xs:element>
+              <xs:element name="FIRST_NAME" type="xs:string">
+                <xs:annotation><xs:appinfo><b:fieldInfo sequence_number="2"/></xs:appinfo></xs:annotation>
+              </xs:element>
+              <xs:element name="LAST_NAME" type="xs:string">
+                <xs:annotation><xs:appinfo><b:fieldInfo sequence_number="3"/></xs:appinfo></xs:annotation>
+              </xs:element>
+              <xs:element name="EMAIL" type="xs:string">
+                <xs:annotation><xs:appinfo><b:fieldInfo sequence_number="4"/></xs:appinfo></xs:annotation>
+              </xs:element>
+              <xs:element name="PHONE_NUMBER" type="xs:string">
+                <xs:annotation><xs:appinfo><b:fieldInfo sequence_number="5"/></xs:appinfo></xs:annotation>
+              </xs:element>
+              <xs:element name="HIRE_DATE" type="xs:string">
+                <xs:annotation><xs:appinfo><b:fieldInfo sequence_number="6"/></xs:appinfo></xs:annotation>
+              </xs:element>
+              <xs:element name="JOB_ID" type="xs:string">
+                <xs:annotation><xs:appinfo><b:fieldInfo sequence_number="7"/></xs:appinfo></xs:annotation>
+              </xs:element>
+              <xs:element name="SALARY" type="xs:string">
+                <xs:annotation><xs:appinfo><b:fieldInfo sequence_number="8"/></xs:appinfo></xs:annotation>
+              </xs:element>
+              <xs:element name="COMMISSION_PCT" type="xs:string">
+                <xs:annotation><xs:appinfo><b:fieldInfo sequence_number="9"/></xs:appinfo></xs:annotation>
+              </xs:element>
+              <xs:element name="MANAGER_ID" type="xs:string">
+                <xs:annotation><xs:appinfo><b:fieldInfo sequence_number="10"/></xs:appinfo></xs:annotation>
+              </xs:element>
+              <xs:element name="DEPARTMENT_ID" type="xs:string">
+                <xs:annotation><xs:appinfo><b:fieldInfo sequence_number="11"/></xs:appinfo></xs:annotation>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- EMPLOYEE ROWS -->
+        <xs:element name="Employee" minOccurs="0" maxOccurs="unbounded">
+          <xs:annotation>
+            <xs:appinfo>
+              <b:recordInfo structure="delimited"
+                            child_delimiter_type="char"
+                            child_delimiter=","
+                            child_order="infix"
+                            sequence_number="2"/>
+            </xs:appinfo>
+          </xs:annotation>
+
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="EMPLOYEE_ID" type="xs:string"><xs:annotation><xs:appinfo><b:fieldInfo sequence_number="1"/></xs:appinfo></xs:annotation></xs:element>
+              <xs:element name="FIRST_NAME" type="xs:string"><xs:annotation><xs:appinfo><b:fieldInfo sequence_number="2"/></xs:appinfo></xs:annotation></xs:element>
+              <xs:element name="LAST_NAME" type="xs:string"><xs:annotation><xs:appinfo><b:fieldInfo sequence_number="3"/></xs:appinfo></xs:annotation></xs:element>
+              <xs:element name="EMAIL" type="xs:string"><xs:annotation><xs:appinfo><b:fieldInfo sequence_number="4"/></xs:appinfo></xs:annotation></xs:element>
+              <xs:element name="PHONE_NUMBER" type="xs:string"><xs:annotation><xs:appinfo><b:fieldInfo sequence_number="5"/></xs:appinfo></xs:annotation></xs:element>
+              <xs:element name="HIRE_DATE" type="xs:string"><xs:annotation><xs:appinfo><b:fieldInfo sequence_number="6"/></xs:appinfo></xs:annotation></xs:element>
+              <xs:element name="JOB_ID" type="xs:string"><xs:annotation><xs:appinfo><b:fieldInfo sequence_number="7"/></xs:appinfo></xs:annotation></xs:element>
+              <xs:element name="SALARY" type="xs:string"><xs:annotation><xs:appinfo><b:fieldInfo sequence_number="8"/></xs:appinfo></xs:annotation></xs:element>
+              <xs:element name="COMMISSION_PCT" type="xs:string"><xs:annotation><xs:appinfo><b:fieldInfo sequence_number="9"/></xs:appinfo></xs:annotation></xs:element>
+              <xs:element name="MANAGER_ID" type="xs:string"><xs:annotation><xs:appinfo><b:fieldInfo sequence_number="10"/></xs:appinfo></xs:annotation></xs:element>
+              <xs:element name="DEPARTMENT_ID" type="xs:string"><xs:annotation><xs:appinfo><b:fieldInfo sequence_number="11"/></xs:appinfo></xs:annotation></xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

@@ -1,0 +1,103 @@
+{
+  "info": {
+    "name": "Flatfile Pickup HTTP Scenarios",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Valid CSV Upload",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fileName\": \"test.csv\",\n  \"fileContent\": \"Name,Age\\nAlice,30\\nBob,25\"\n}"
+        },
+        "url": {
+          "raw": "https://<YOUR-LA-ENDPOINT>/api/manual",
+          "protocol": "https",
+          "host": ["<YOUR-LA-ENDPOINT>"],
+          "path": ["api", "manual"]
+        }
+      }
+    },
+    {
+      "name": "Missing fileContent",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fileName\": \"test.csv\"\n}"
+        },
+        "url": {
+          "raw": "https://<YOUR-LA-ENDPOINT>/api/manual",
+          "protocol": "https",
+          "host": ["<YOUR-LA-ENDPOINT>"],
+          "path": ["api", "manual"]
+        }
+      }
+    },
+    {
+      "name": "Empty fileContent",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fileName\": \"test.csv\",\n  \"fileContent\": \"\"\n}"
+        },
+        "url": {
+          "raw": "https://<YOUR-LA-ENDPOINT>/api/manual",
+          "protocol": "https",
+          "host": ["<YOUR-LA-ENDPOINT>"],
+          "path": ["api", "manual"]
+        }
+      }
+    },
+    {
+      "name": "Large fileContent (>10MB)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fileName\": \"large.csv\",\n  \"fileContent\": \"" + "A".repeat(10485761) + "\"\n}"
+        },
+        "url": {
+          "raw": "https://<YOUR-LA-ENDPOINT>/api/manual",
+          "protocol": "https",
+          "host": ["<YOUR-LA-ENDPOINT>"],
+          "path": ["api", "manual"]
+        }
+      }
+    },
+    {
+      "name": "No fileName (defaults to manual-upload.csv)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fileContent\": \"Name,Age\\nAlice,30\\nBob,25\"\n}"
+        },
+        "url": {
+          "raw": "https://<YOUR-LA-ENDPOINT>/api/manual",
+          "protocol": "https",
+          "host": ["<YOUR-LA-ENDPOINT>"],
+          "path": ["api", "manual"]
+        }
+      }
+    }
+  ]
+}

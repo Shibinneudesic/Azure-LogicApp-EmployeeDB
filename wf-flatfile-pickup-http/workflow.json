@@ -1,334 +1,341 @@
 {
-  "definition": {
-    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-    "actions": {
-      "Initialize_CorrelationId": {
-        "type": "InitializeVariable",
-        "inputs": {
-          "variables": [
-            {
-              "name": "CorrelationId",
-              "type": "string",
-              "value": "@{guid()}"
-            }
-          ]
-        },
-        "runAfter": {}
-      },
-      "Initialize_ErrorDetails": {
-        "type": "InitializeVariable",
-        "inputs": {
-          "variables": [
-            {
-              "name": "ErrorDetails",
-              "type": "string"
-            }
-          ]
-        },
-        "runAfter": {
-          "Initialize_CorrelationId": [
-            "Succeeded"
-          ]
-        }
-      },
-      "Initialize_FileName": {
-        "type": "InitializeVariable",
-        "inputs": {
-          "variables": [
-            {
-              "name": "FileName",
-              "type": "string",
-              "value": "@{coalesce(triggerBody()?['fileName'], 'manual-upload.csv')}"
-            }
-          ]
-        },
-        "runAfter": {
-          "Initialize_ErrorDetails": [
-            "Succeeded"
-          ]
-        }
-      },
-      "Initialize_FileContent": {
-        "type": "InitializeVariable",
-        "inputs": {
-          "variables": [
-            {
-              "name": "FileContent",
-              "type": "string",
-              "value": "@{triggerBody()?['fileContent']}"
-            }
-          ]
-        },
-        "runAfter": {
-          "Initialize_FileName": [
-            "Succeeded"
-          ]
-        }
-      },
-      "Scope_FileProcessing": {
-        "type": "Scope",
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
         "actions": {
-          "Check_file_content": {
-            "type": "If",
-            "expression": {
-              "and": [
-                {
-                  "not": {
-                    "equals": [
-                      "@variables('FileContent')",
-                      ""
-                    ]
-                  }
-                },
-                {
-                  "not": {
-                    "equals": [
-                      "@variables('FileContent')",
-                      null
-                    ]
-                  }
-                }
-              ]
-            },
-            "actions": {
-              "Check_file_size": {
-                "type": "If",
-                "expression": {
-                  "and": [
-                    {
-                      "greaterOrEquals": [
-                        "@length(variables('FileContent'))",
-                        1
-                      ]
-                    },
-                    {
-                      "lessOrEquals": [
-                        "@length(variables('FileContent'))",
-                        10485760
-                      ]
-                    }
-                  ]
-                },
+            "Scope_ErrorHandling": {
+                "type": "Scope",
                 "actions": {
-                  "Send_message_to_ServiceBus": {
-                    "type": "ServiceProvider",
-                    "inputs": {
-                      "parameters": {
-                        "entityName": "flatfile-processing-queue",
-                        "message": {
-                          "contentData": "@{base64(variables('FileContent'))}",
-                          "contentType": "text/csv",
-                          "properties": {
-                            "CorrelationId": "@variables('CorrelationId')",
-                            "FileName": "@variables('FileName')",
-                            "FilePath": "HTTP-Upload",
-                            "ProcessedTime": "@utcNow()"
-                          }
+                    "Set_ErrorDetails": {
+                        "type": "SetVariable",
+                        "inputs": {
+                            "name": "ErrorDetails",
+                            "value": "Error: @{actions('Scope_FileProcessing')['error']['message']}"
                         }
-                      },
-                      "serviceProviderConfiguration": {
-                        "connectionName": "serviceBus",
-                        "operationId": "sendMessage",
-                        "serviceProviderId": "/serviceProviders/serviceBus"
-                      }
                     },
-                    "runAfter": {}
-                  },
-                  "Response_Success": {
-                    "type": "Response",
-                    "inputs": {
-                      "statusCode": 200,
-                      "body": {
-                        "status": "Success",
-                        "message": "File sent to Service Bus for processing",
-                        "correlationId": "@variables('CorrelationId')",
-                        "fileName": "@variables('FileName')",
-                        "fileSize": "@length(variables('FileContent'))",
-                        "timestamp": "@utcNow()"
-                      }
-                    },
-                    "runAfter": {
-                      "Send_message_to_ServiceBus": [
-                        "Succeeded"
-                      ]
-                    }
-                  }
-                },
-                "else": {
-                  "actions": {
-                    "Set_ErrorDetails_InvalidSize": {
-                      "type": "SetVariable",
-                      "inputs": {
-                        "name": "ErrorDetails",
-                        "value": "File size validation failed. File size: @{length(variables('FileContent'))} bytes. Valid range: 1 byte - 10 MB"
-                      },
-                      "runAfter": {}
-                    },
-                    "Send_to_DeadLetter": {
-                      "type": "ServiceProvider",
-                      "inputs": {
-                        "parameters": {
-                          "entityName": "flatfile-deadletter-queue",
-                          "message": {
-                            "contentData": "@{variables('ErrorDetails')}",
-                            "properties": {
-                              "CorrelationId": "@variables('CorrelationId')",
-                              "FileName": "@variables('FileName')",
-                              "ErrorType": "ValidationError",
-                              "Timestamp": "@utcNow()"
-                            }
-                          }
+                    "Log_FileProcessing_Error": {
+                        "type": "Compose",
+                        "inputs": {
+                            "workflowName": "wf-flatfile-pickup-http",
+                            "correlationId": "@variables('CorrelationId')",
+                            "status": "Failed",
+                            "message": "@variables('ErrorDetails')",
+                            "fileName": "@variables('FileName')",
+                            "timestamp": "@utcNow()",
+                            "runId": "@workflow()['run']['name']"
                         },
-                        "serviceProviderConfiguration": {
-                          "connectionName": "serviceBus",
-                          "operationId": "sendMessage",
-                          "serviceProviderId": "/serviceProviders/serviceBus"
+                        "runAfter": {
+                            "Set_ErrorDetails": [
+                                "Succeeded"
+                            ]
+                        },
+                        "trackedProperties": "@outputs('Log_FileProcessing_Error')",
+                        "metadata": {
+                            "description": "Log unexpected processing failures"
                         }
-                      },
-                      "runAfter": {
-                        "Set_ErrorDetails_InvalidSize": [
-                          "Succeeded"
-                        ]
-                      }
                     },
-                    "Response_Validation_Failed": {
-                      "type": "Response",
-                      "inputs": {
-                        "statusCode": 400,
-                        "body": {
-                          "status": "Failed",
-                          "error": "FileValidationFailed",
-                          "message": "@variables('ErrorDetails')",
-                          "correlationId": "@variables('CorrelationId')"
+                    "Send_Error_to_DeadLetter": {
+                        "type": "ServiceProvider",
+                        "inputs": {
+                            "parameters": {
+                                "entityName": "flatfile-deadletter-queue",
+                                "message": {
+                                    "body": "@{variables('ErrorDetails')}",
+                                    "properties": {
+                                        "CorrelationId": "@variables('CorrelationId')",
+                                        "FileName": "@variables('FileName')",
+                                        "ErrorType": "ProcessingError",
+                                        "Timestamp": "@utcNow()"
+                                    }
+                                }
+                            },
+                            "serviceProviderConfiguration": {
+                                "connectionName": "serviceBus",
+                                "operationId": "sendMessage",
+                                "serviceProviderId": "/serviceProviders/serviceBus"
+                            }
+                        },
+                        "runAfter": {
+                            "Log_FileProcessing_Error": [
+                                "Succeeded"
+                            ]
                         }
-                      },
-                      "runAfter": {
-                        "Send_to_DeadLetter": [
-                          "Succeeded"
-                        ]
-                      }
+                    },
+                    "Terminate_Run_On_Error": {
+                        "type": "Terminate",
+                        "inputs": {
+                            "runStatus": "Failed",
+                            "runError": {
+                                "code": "Scope_FileProcessingFailed",
+                                "message": "@variables('ErrorDetails')"
+                            }
+                        },
+                        "runAfter": {
+                            "Send_Error_to_DeadLetter": [
+                                "Succeeded",
+                                "Failed",
+                                "Skipped",
+                                "TimedOut"
+                            ]
+                        }
                     }
-                  }
+                },
+                "runAfter": {
+                    "Scope_FileProcessing": [
+                        "Failed",
+                        "Skipped",
+                        "TimedOut"
+                    ]
+                }
+            },
+            "Initialize_FileContent": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "CorrelationId",
+                            "type": "string",
+                            "value": "@{guid()}"
+                        },
+                        {
+                            "name": "ErrorDetails",
+                            "type": "string"
+                        },
+                        {
+                            "name": "FileName",
+                            "type": "string",
+                            "value": "@{coalesce(triggerOutputs()?['body/Name'], 'manual-upload.csv')}"
+                        },
+                        {
+                            "name": "FileContent",
+                            "type": "string",
+                            "value": ""
+                        }
+                    ]
                 },
                 "runAfter": {}
-              }
             },
-            "else": {
-              "actions": {
-                "Response_No_Content": {
-                  "type": "Response",
-                  "inputs": {
-                    "statusCode": 400,
-                    "body": {
-                      "status": "Failed",
-                      "error": "NoFileContent",
-                      "message": "File content is required. Please provide fileContent in the request body."
+            "Scope_FileProcessing": {
+                "type": "Scope",
+                "actions": {
+                    "Validate_File": {
+                        "type": "If",
+                        "expression": {
+                            "and": [
+                                {
+                                    "not": {
+                                        "equals": [
+                                            "@variables('FileContent')",
+                                            ""
+                                        ]
+                                    }
+                                },
+                                {
+                                    "not": {
+                                        "equals": [
+                                            "@variables('FileContent')",
+                                            null
+                                        ]
+                                    }
+                                },
+                                {
+                                    "greaterOrEquals": [
+                                        "@length(variables('FileContent'))",
+                                        1
+                                    ]
+                                },
+                                {
+                                    "lessOrEquals": [
+                                        "@length(variables('FileContent'))",
+                                        10485760
+                                    ]
+                                }
+                            ]
+                        },
+                        "actions": {
+                            "Send_message_to_ServiceBus": {
+                                "type": "ServiceProvider",
+                                "inputs": {
+                                    "parameters": {
+                                        "entityName": "flatfile-processing-queue",
+                                        "message": {
+                                            "messageId": "@guid()",
+                                            "contentData": {
+                                                "$content-type": "text/csv",
+                                                "$content": "@base64(variables('FileContent'))"
+                                            },
+                                            "contentType": "text/csv",
+                                            "properties": {
+                                                "CorrelationId": "@variables('CorrelationId')",
+                                                "FileName": "@variables('FileName')",
+                                                "FilePath": "@coalesce(triggerOutputs()?['body/Path'], 'FileSystem')",
+                                                "ProcessedTime": "@utcNow()"
+                                            }
+                                        }
+                                    },
+                                    "serviceProviderConfiguration": {
+                                        "connectionName": "serviceBus",
+                                        "operationId": "sendMessage",
+                                        "serviceProviderId": "/serviceProviders/serviceBus"
+                                    }
+                                }
+                            },
+                            "Log_FileValidation_Success": {
+                                "type": "Compose",
+                                "inputs": {
+                                    "workflowName": "wf-flatfile-pickup-http",
+                                    "correlationId": "@variables('CorrelationId')",
+                                    "status": "Queued",
+                                    "message": "File content validated and enqueued",
+                                    "fileName": "@variables('FileName')",
+                                    "fileSize": "@length(variables('FileContent'))",
+                                    "queueName": "flatfile-processing-queue",
+                                    "timestamp": "@utcNow()",
+                                    "runId": "@workflow()['run']['name']"
+                                },
+                                "runAfter": {
+                                    "Send_message_to_ServiceBus": [
+                                        "Succeeded"
+                                    ]
+                                },
+                                "trackedProperties": "@outputs('Log_FileValidation_Success')",
+                                "metadata": {
+                                    "description": "Log successful validation and enqueue operation"
+                                }
+                            }
+                        },
+                        "else": {
+                            "actions": {
+                                "Set_ErrorDetails_Validation": {
+                                    "type": "SetVariable",
+                                    "inputs": {
+                                        "name": "ErrorDetails",
+                                        "value": "@if(or(equals(variables('FileContent'), ''), equals(variables('FileContent'), null)), 'File content is required but was missing in the trigger payload.', concat('File size validation failed. File size: ', string(length(variables('FileContent'))), ' bytes. Valid range: 1 byte - 10 MB'))"
+                                    }
+                                },
+                                "Log_FileValidation_Failure": {
+                                    "type": "Compose",
+                                    "inputs": {
+                                        "workflowName": "wf-flatfile-pickup-http",
+                                        "correlationId": "@variables('CorrelationId')",
+                                        "status": "ValidationFailed",
+                                        "message": "@variables('ErrorDetails')",
+                                        "fileName": "@variables('FileName')",
+                                        "fileSize": "@if(or(equals(variables('FileContent'), ''), equals(variables('FileContent'), null)), 0, length(variables('FileContent')))",
+                                        "failureType": "@if(or(equals(variables('FileContent'), ''), equals(variables('FileContent'), null)), 'MissingContent', 'InvalidSize')",
+                                        "timestamp": "@utcNow()",
+                                        "runId": "@workflow()['run']['name']"
+                                    },
+                                    "runAfter": {
+                                        "Set_ErrorDetails_Validation": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "trackedProperties": "@outputs('Log_FileValidation_Failure')",
+                                    "metadata": {
+                                        "description": "Log validation failure details"
+                                    }
+                                },
+                                "Send_to_DeadLetter": {
+                                    "type": "ServiceProvider",
+                                    "inputs": {
+                                        "parameters": {
+                                            "entityName": "flatfile-deadletter-queue",
+                                            "message": {
+                                                "body": "@{variables('ErrorDetails')}",
+                                                "properties": {
+                                                    "CorrelationId": "@variables('CorrelationId')",
+                                                    "FileName": "@variables('FileName')",
+                                                    "ErrorType": "ValidationError",
+                                                    "FailureType": "@if(or(equals(variables('FileContent'), ''), equals(variables('FileContent'), null)), 'MissingContent', 'InvalidSize')",
+                                                    "Timestamp": "@utcNow()"
+                                                }
+                                            }
+                                        },
+                                        "serviceProviderConfiguration": {
+                                            "connectionName": "serviceBus",
+                                            "operationId": "sendMessage",
+                                            "serviceProviderId": "/serviceProviders/serviceBus"
+                                        }
+                                    },
+                                    "runAfter": {
+                                        "Log_FileValidation_Failure": [
+                                            "Succeeded"
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                        "runAfter": {
+                            "Set_FileContent_From_File": [
+                                "SUCCEEDED"
+                            ]
+                        }
+                    },
+                    "Get_File_Content": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "referenceName": "filesystem-3"
+                                }
+                            },
+                            "method": "get",
+                            "path": "/datasets/default/files/@{encodeURIComponent(encodeURIComponent(triggerOutputs()?['body/Id']))}/content",
+                            "queries": {
+                                "inferContentType": true
+                            }
+                        }
+                    },
+                    "Set_FileContent_From_File": {
+                        "type": "SetVariable",
+                        "inputs": {
+                            "name": "FileContent",
+                            "value": "@coalesce(outputs('Get_File_Content')?['body/$content'], base64(body('Get_File_Content')))"
+                        },
+                        "runAfter": {
+                            "Get_File_Content": [
+                                "SUCCEEDED"
+                            ]
+                        }
                     }
-                  },
-                  "runAfter": {}
+                },
+                "runAfter": {
+                    "Initialize_FileContent": [
+                        "Succeeded"
+                    ]
                 }
-              }
-            },
-            "runAfter": {}
-          }
+            }
         },
-        "runAfter": {
-          "Initialize_FileContent": [
-            "Succeeded"
-          ]
-        }
-      },
-      "Scope_ErrorHandling": {
-        "type": "Scope",
-        "actions": {
-          "Set_ErrorDetails": {
-            "type": "SetVariable",
-            "inputs": {
-              "name": "ErrorDetails",
-              "value": "Error: @{actions('Scope_FileProcessing')['error']['message']}"
-            },
-            "runAfter": {}
-          },
-          "Send_Error_to_DeadLetter": {
-            "type": "ServiceProvider",
-            "inputs": {
-              "parameters": {
-                "entityName": "flatfile-deadletter-queue",
-                "message": {
-                  "contentData": "@{variables('ErrorDetails')}",
-                  "properties": {
-                    "CorrelationId": "@variables('CorrelationId')",
-                    "FileName": "@variables('FileName')",
-                    "ErrorType": "ProcessingError",
-                    "Timestamp": "@utcNow()"
-                  }
+        "triggers": {
+            "When_a_file_is_added_or_modified_(properties_only)": {
+                "type": "ApiConnection",
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "referenceName": "filesystem-3"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/datasets/default/triggers/batch/onupdatedfile",
+                    "queries": {
+                        "folderId": "6e202211-2856-4d17-9ded-5beb8b8626b0",
+                        "maxFileCount": 10,
+                        "checkBothCreatedAndModifiedDateTime": false
+                    }
+                },
+                "recurrence": {
+                    "interval": 30,
+                    "frequency": "Second"
+                },
+                "conditions": [],
+                "splitOn": "@triggerBody()",
+                "metadata": {
+                    "6e202211-2856-4d17-9ded-5beb8b8626b0": "/"
                 }
-              },
-              "serviceProviderConfiguration": {
-                "connectionName": "serviceBus",
-                "operationId": "sendMessage",
-                "serviceProviderId": "/serviceProviders/serviceBus"
-              }
-            },
-            "runAfter": {
-              "Set_ErrorDetails": [
-                "Succeeded"
-              ]
             }
-          },
-          "Response_Error": {
-            "type": "Response",
-            "inputs": {
-              "statusCode": 500,
-              "body": {
-                "status": "Failed",
-                "error": "FileProcessingError",
-                "message": "@variables('ErrorDetails')",
-                "correlationId": "@variables('CorrelationId')"
-              }
-            },
-            "runAfter": {
-              "Send_Error_to_DeadLetter": [
-                "Succeeded"
-              ]
-            }
-          }
         },
-        "runAfter": {
-          "Scope_FileProcessing": [
-            "Failed",
-            "Skipped",
-            "TimedOut"
-          ]
-        }
-      }
+        "contentVersion": "1.0.0.0",
+        "outputs": {}
     },
-    "triggers": {
-      "manual": {
-        "type": "Request",
-        "kind": "Http",
-        "inputs": {
-          "schema": {
-            "type": "object",
-            "properties": {
-              "fileName": {
-                "type": "string",
-                "description": "Name of the file (e.g., employees.csv)"
-              },
-              "fileContent": {
-                "type": "string",
-                "description": "Content of the CSV file as plain text"
-              }
-            },
-            "required": [
-              "fileContent"
-            ]
-          }
-        }
-      }
-    },
-    "contentVersion": "1.0.0.0",
-    "outputs": {}
-  },
-  "kind": "Stateful"
+    "kind": "Stateful"
 }

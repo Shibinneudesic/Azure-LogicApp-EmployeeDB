@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "gatewayId": {
+      "type": "string",
+      "defaultValue": "/subscriptions/cbb1dbec-731f-4479-a084-bdaec5e54fd4/resourceGroups/AIS_Training_Shibin/providers/Microsoft.Web/connectionGateways/AIS-Training-Standard-Gateway"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "filesystem",
+      "location": "canadacentral",
+      "properties": {
+        "displayName": "FileSystem-Gateway",
+        "api": {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/canadacentral/managedApis/filesystem')]"
+        },
+        "parameterValues": {
+          "rootFolder": "C:\\EmployeeFiles",
+          "authType": "windows",
+          "username": "shibin",
+          "password": "shibin",
+          "gateway": {
+            "id": "[parameters('gatewayId')]"
+          }
+        }
+      }
+    }
+  ]
+}

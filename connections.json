@@ -1,15 +1,5 @@
 {
   "managedApiConnections": {
-    "azurequeues": {
-      "api": {
-        "id": "/subscriptions/@{appsetting('WORKFLOWS_SUBSCRIPTION_ID')}/providers/Microsoft.Web/locations/@{appsetting('WORKFLOWS_LOCATION_NAME')}/managedApis/azurequeues"
-      },
-      "connection": {
-        "id": "/subscriptions/@{appsetting('WORKFLOWS_SUBSCRIPTION_ID')}/resourceGroups/@{appsetting('WORKFLOWS_RESOURCE_GROUP_NAME')}/providers/Microsoft.Web/connections/azurequeues"
-      },
-      "connectionRuntimeUrl": "@parameters('azurequeues-ConnectionRuntimeUrl')",
-      "authentication": "@parameters('azurequeues-Authentication')"
-    }
   },
   "serviceProviderConnections": {
     "sql": {
@@ -39,20 +29,6 @@
         "id": "/serviceProviders/serviceBus"
       },
       "displayName": "serviceBus"
-    },
-    "FileSystem": {
-      "parameterValues": {
-        "basePath": "C:",
-        "username": "@appsetting('ONPREMISE_FILE_USERNAME')",
-        "password": "@appsetting('ONPREMISE_FILE_PASSWORD')",
-        "gateway": {
-          "id": "/subscriptions/cbb1dbec-731f-4479-a084-bdaec5e54fd4/resourceGroups/AIS_Training_Shibin/providers/Microsoft.Web/connectionGateways/AIS-Training-Standard-Gateway"
-        }
-      },
-      "serviceProvider": {
-        "id": "/serviceProviders/FileSystem"
-      },
-      "displayName": "FileSystem"
     }
   }
 }

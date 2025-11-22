@@ -25,7 +25,7 @@
     },
     "storageAccountName": {
       "type": "string",
-      "defaultValue": "aistrainingshibinbf12",
+      "defaultValue": "aistrainingshibin8a76",
       "metadata": {
         "description": "Storage account name for Logic App"
       }

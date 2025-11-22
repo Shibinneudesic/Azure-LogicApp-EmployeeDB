@@ -1,5 +1,14 @@
 {
-  "managedApiConnections": {},
+  "managedApiConnections": {
+    "azurequeues": {
+      "api": {
+        "id": "/subscriptions/cbb1dbec-731f-4479-a084-bdaec5e54fd4/providers/Microsoft.Web/locations/canadacentral/managedApis/azurequeues"
+      },
+      "connection": {
+        "id": "/subscriptions/cbb1dbec-731f-4479-a084-bdaec5e54fd4/resourceGroups/AIS_Training_Shibin/providers/Microsoft.Web/sites/ais-training-la/connections/azurequeues"
+      }
+    }
+  },
   "serviceProviderConnections": {
     "sql": {
       "parameterValues": {
@@ -19,6 +28,15 @@
         "id": "/serviceProviders/azureloganalyticsdatacollector"
       },
       "displayName": "azureloganalyticsdatacollector"
+    },
+    "serviceBus": {
+      "parameterValues": {
+        "connectionString": "@appsetting('SERVICE_BUS_CONNECTION_STRING')"
+      },
+      "serviceProvider": {
+        "id": "/serviceProviders/serviceBus"
+      },
+      "displayName": "serviceBus"
     }
   }
 }

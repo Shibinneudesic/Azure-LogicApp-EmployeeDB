@@ -9,7 +9,7 @@ param location string = 'Canada Central'
 param logicAppName string = 'ais-training-la'
 
 @description('Storage account name for Logic App')
-param storageAccountName string = 'aistrainingshibinbf12'
+param storageAccountName string = 'aistrainingshibin8a76'
 
 @description('App Service Plan name')
 param appServicePlanName string = 'ASP-AISTrainingShibin-b7e4'

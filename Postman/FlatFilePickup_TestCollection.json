@@ -1,0 +1,337 @@
+{
+  "info": {
+    "name": "Flat File Pickup Logic App - Test Collection",
+    "description": "Test collection for the Flat File Pickup Logic App (wf-flatfile-pickup) with various scenarios including success, validation errors, and edge cases",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:7071",
+      "description": "Base URL for local testing"
+    },
+    {
+      "key": "workflowName",
+      "value": "wf-flatfile-pickup",
+      "description": "Name of the workflow"
+    },
+    {
+      "key": "localEndpoint",
+      "value": "{{baseUrl}}/api/{{workflowName}}/triggers/manual/invoke",
+      "description": "Local endpoint for manual trigger"
+    }
+  ],
+  "item": [
+    {
+      "name": "Success Scenarios",
+      "item": [
+        {
+          "name": "1. Valid File - Small Size",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Name\": \"employees_small.csv\",\n  \"Path\": \"/EmployeeFiles/employees_small.csv\",\n  \"Id\": \"test-file-id-001\"\n}"
+            },
+            "url": {
+              "raw": "{{localEndpoint}}",
+              "host": ["{{localEndpoint}}"]
+            },
+            "description": "Test with a valid file that is small in size (under 10MB). This should successfully process and send to Service Bus queue."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Valid File - Medium Size",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Name\": \"employees_medium.csv\",\n  \"Path\": \"/EmployeeFiles/employees_medium.csv\",\n  \"Id\": \"test-file-id-002\"\n}"
+            },
+            "url": {
+              "raw": "{{localEndpoint}}",
+              "host": ["{{localEndpoint}}"]
+            },
+            "description": "Test with a valid file that is medium in size (between 1MB and 5MB). This should successfully process."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Valid File - Standard Employee Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Name\": \"employees.csv\",\n  \"Path\": \"/EmployeeFiles/employees.csv\",\n  \"Id\": \"test-file-id-003\"\n}"
+            },
+            "url": {
+              "raw": "{{localEndpoint}}",
+              "host": ["{{localEndpoint}}"]
+            },
+            "description": "Test with standard employee CSV file. This is the typical use case."
+          },
+          "response": []
+        }
+      ],
+      "description": "Test scenarios that should succeed"
+    },
+    {
+      "name": "Validation Error Scenarios",
+      "item": [
+        {
+          "name": "1. Missing Required Field - Name",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Path\": \"/EmployeeFiles/test.csv\",\n  \"Id\": \"test-file-id-004\"\n}"
+            },
+            "url": {
+              "raw": "{{localEndpoint}}",
+              "host": ["{{localEndpoint}}"]
+            },
+            "description": "Test with missing Name field. Should return validation error."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Missing Required Field - Path",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Name\": \"test.csv\",\n  \"Id\": \"test-file-id-005\"\n}"
+            },
+            "url": {
+              "raw": "{{localEndpoint}}",
+              "host": ["{{localEndpoint}}"]
+            },
+            "description": "Test with missing Path field. Should return validation error."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Missing Required Field - Id",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Name\": \"test.csv\",\n  \"Path\": \"/EmployeeFiles/test.csv\"\n}"
+            },
+            "url": {
+              "raw": "{{localEndpoint}}",
+              "host": ["{{localEndpoint}}"]
+            },
+            "description": "Test with missing Id field. Should return validation error."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Empty File (Size = 0)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Name\": \"empty_file.csv\",\n  \"Path\": \"/EmployeeFiles/empty_file.csv\",\n  \"Id\": \"test-file-id-006\"\n}"
+            },
+            "url": {
+              "raw": "{{localEndpoint}}",
+              "host": ["{{localEndpoint}}"]
+            },
+            "description": "Test with empty file (0 bytes). Should fail validation with 'File size must be between 1 byte and 10 MB'."
+          },
+          "response": []
+        },
+        {
+          "name": "5. File Too Large (>10MB)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Name\": \"large_file.csv\",\n  \"Path\": \"/EmployeeFiles/large_file.csv\",\n  \"Id\": \"test-file-id-007\"\n}"
+            },
+            "url": {
+              "raw": "{{localEndpoint}}",
+              "host": ["{{localEndpoint}}"]
+            },
+            "description": "Test with file larger than 10MB. Should fail validation with 'File size must be between 1 byte and 10 MB'."
+          },
+          "response": []
+        }
+      ],
+      "description": "Test scenarios that should fail validation"
+    },
+    {
+      "name": "Edge Cases",
+      "item": [
+        {
+          "name": "1. Special Characters in File Name",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Name\": \"employees_2024-01-15_10-30-00.csv\",\n  \"Path\": \"/EmployeeFiles/employees_2024-01-15_10-30-00.csv\",\n  \"Id\": \"test-file-id-008\"\n}"
+            },
+            "url": {
+              "raw": "{{localEndpoint}}",
+              "host": ["{{localEndpoint}}"]
+            },
+            "description": "Test with special characters in filename (hyphens, underscores). Should handle correctly."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Long File Path",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Name\": \"very_long_file_name_that_might_cause_issues.csv\",\n  \"Path\": \"/EmployeeFiles/SubFolder/AnotherSubFolder/very_long_file_name_that_might_cause_issues.csv\",\n  \"Id\": \"test-file-id-009\"\n}"
+            },
+            "url": {
+              "raw": "{{localEndpoint}}",
+              "host": ["{{localEndpoint}}"]
+            },
+            "description": "Test with long file path. Should handle correctly."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Unicode Characters in File Name",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Name\": \"employees_员工.csv\",\n  \"Path\": \"/EmployeeFiles/employees_员工.csv\",\n  \"Id\": \"test-file-id-010\"\n}"
+            },
+            "url": {
+              "raw": "{{localEndpoint}}",
+              "host": ["{{localEndpoint}}"]
+            },
+            "description": "Test with Unicode characters in filename. Should handle encoding correctly."
+          },
+          "response": []
+        }
+      ],
+      "description": "Test edge cases and special scenarios"
+    },
+    {
+      "name": "Error Handling",
+      "item": [
+        {
+          "name": "1. Invalid File Path",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Name\": \"nonexistent.csv\",\n  \"Path\": \"/EmployeeFiles/nonexistent.csv\",\n  \"Id\": \"test-file-id-011\"\n}"
+            },
+            "url": {
+              "raw": "{{localEndpoint}}",
+              "host": ["{{localEndpoint}}"]
+            },
+            "description": "Test with file path that doesn't exist. Should trigger error handling and send to dead letter queue."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Invalid File ID Format",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Name\": \"test.csv\",\n  \"Path\": \"/EmployeeFiles/test.csv\",\n  \"Id\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{localEndpoint}}",
+              "host": ["{{localEndpoint}}"]
+            },
+            "description": "Test with empty Id. Should fail validation."
+          },
+          "response": []
+        }
+      ],
+      "description": "Test error handling scenarios"
+    }
+  ]
+}
+

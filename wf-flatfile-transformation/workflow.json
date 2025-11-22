@@ -1,426 +1,282 @@
 {
-  "definition": {
-    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-    "actions": {
-      "Initialize_CorrelationId": {
-        "type": "InitializeVariable",
-        "inputs": {
-          "variables": [
-            {
-              "name": "CorrelationId",
-              "type": "string",
-              "value": "@{triggerBody()?['properties']?['CorrelationId']}"
-            }
-          ]
-        },
-        "runAfter": {}
-      },
-      "Initialize_ErrorMessage": {
-        "type": "InitializeVariable",
-        "inputs": {
-          "variables": [
-            {
-              "name": "ErrorMessage",
-              "type": "string",
-              "value": ""
-            }
-          ]
-        },
-        "runAfter": {
-          "Initialize_CorrelationId": [
-            "Succeeded"
-          ]
-        }
-      },
-      "Initialize_XMLOutput": {
-        "type": "InitializeVariable",
-        "inputs": {
-          "variables": [
-            {
-              "name": "XMLOutput",
-              "type": "string",
-              "value": ""
-            }
-          ]
-        },
-        "runAfter": {
-          "Initialize_ErrorMessage": [
-            "Succeeded"
-          ]
-        }
-      },
-      "Initialize_JSONOutput": {
-        "type": "InitializeVariable",
-        "inputs": {
-          "variables": [
-            {
-              "name": "JSONOutput",
-              "type": "string",
-              "value": ""
-            }
-          ]
-        },
-        "runAfter": {
-          "Initialize_XMLOutput": [
-            "Succeeded"
-          ]
-        }
-      },
-      "Scope_Transformation": {
-        "type": "Scope",
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
         "actions": {
-          "Parse_CSV_Message": {
-            "type": "Compose",
-            "inputs": "@base64ToString(triggerBody()?['contentData'])",
-            "runAfter": {}
-          },
-          "Convert_CSV_To_JSON_Array": {
-            "type": "ParseJson",
-            "inputs": {
-              "content": "@outputs('Parse_CSV_Message')",
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "EMPLOYEE_ID": {"type": "string"},
-                    "FIRST_NAME": {"type": "string"},
-                    "LAST_NAME": {"type": "string"},
-                    "EMAIL": {"type": "string"},
-                    "PHONE_NUMBER": {"type": "string"},
-                    "HIRE_DATE": {"type": "string"},
-                    "JOB_ID": {"type": "string"},
-                    "SALARY": {"type": "string"},
-                    "COMMISSION_PCT": {"type": "string"},
-                    "MANAGER_ID": {"type": "string"},
-                    "DEPARTMENT_ID": {"type": "string"}
-                  }
-                }
-              }
-            },
-            "runAfter": {
-              "Parse_CSV_Message": [
-                "Succeeded"
-              ]
-            },
-            "metadata": {
-              "description": "Parse CSV content into JSON array"
-            }
-          },
-          "Convert_CSV_To_XML_Intermediate": {
-            "type": "Compose",
-            "inputs": {
-              "employees": {
-                "employee": "@body('Convert_CSV_To_JSON_Array')"
-              }
-            },
-            "runAfter": {
-              "Convert_CSV_To_JSON_Array": [
-                "Succeeded"
-              ]
-            },
-            "metadata": {
-              "description": "Wraps JSON array in employees envelope for transformations"
-            }
-          },
-          "Parallel_Transformations": {
-            "type": "Foreach",
-            "foreach": "@range(0, 1)",
-            "actions": {
-              "Condition_Transform_Type": {
-                "type": "If",
-                "expression": {
-                  "equals": [
-                    "@item()",
-                    0
-                  ]
-                },
+            "Scope_Transformation": {
+                "type": "Scope",
                 "actions": {
-                  "Transform_To_XML_Using_XSLT": {
-                    "type": "Xslt",
-                    "inputs": {
-                      "content": "@outputs('Convert_CSV_To_XML_Intermediate')",
-                      "map": {
-                        "source": "LogicApp",
-                        "name": "EmployeeCSVToXML.xslt"
-                      },
-                      "transformOptions": "ApplyXsltOutputAttributes"
-                    },
-                    "runAfter": {}
-                  },
-                  "Set_XML_Output": {
-                    "type": "SetVariable",
-                    "inputs": {
-                      "name": "XMLOutput",
-                      "value": "@{body('Transform_To_XML_Using_XSLT')}"
-                    },
-                    "runAfter": {
-                      "Transform_To_XML_Using_XSLT": [
-                        "Succeeded"
-                      ]
-                    }
-                  },
-                  "Send_XML_To_Storage_Queue": {
-                    "type": "ApiConnection",
-                    "inputs": {
-                      "host": {
-                        "connection": {
-                          "referenceName": "azurequeues"
+                    "Decode_Flat_File": {
+                        "type": "FlatFileDecoding",
+                        "inputs": {
+                            "content": "@base64ToString(base64ToString(triggerBody()?['contentData']?['$content']))",
+                            "schema": {
+                                "source": "LogicApp",
+                                "name": "EmployeeCSV.xsd"
+                            }
+                        },
+                        "metadata": {
+                            "description": "Decode CSV flat file using XSD schema - outputs XML with employee data"
                         }
-                      },
-                      "method": "post",
-                      "path": "/v2/storageAccounts/@{encodeURIComponent(encodeURIComponent('AccountNameFromSettings'))}/queues/@{encodeURIComponent('flatfile-xml-queue')}/messages",
-                      "body": "@variables('XMLOutput')",
-                      "queries": {
-                        "visibilitytimeout": "0"
-                      }
                     },
-                    "runAfter": {
-                      "Set_XML_Output": [
-                        "Succeeded"
-                      ]
+                    "Transform_To_XML_Using_XSLT": {
+                        "type": "Xslt",
+                        "inputs": {
+                            "content": "@body('Decode_Flat_File')",
+                            "map": {
+                                "source": "LogicApp",
+                                "name": "EmployeeCSVToXML.xslt"
+                            },
+                            "transformOptions": "ApplyXsltOutputAttributes"
+                        },
+                        "runAfter": {
+                            "Decode_Flat_File": [
+                                "Succeeded"
+                            ]
+                        },
+                        "metadata": {
+                            "description": "Transform decoded XML using XSLT"
+                        }
                     },
-                    "metadata": {
-                      "description": "Sends transformed XML to Azure Storage Queue"
-                    }
-                  }
-                },
-                "else": {
-                  "actions": {
+                    "Send_XML_To_Storage_Queue": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "referenceName": "azurequeues"
+                                }
+                            },
+                            "method": "post",
+                            "body": "@body('Transform_To_XML_Using_XSLT')",
+                            "path": "/v2/storageAccounts/@{encodeURIComponent(encodeURIComponent('AccountNameFromSettings'))}/queues/@{encodeURIComponent('flatfile-xml-queue')}/messages",
+                            "queries": {
+                                "visibilitytimeout": "0"
+                            }
+                        },
+                        "runAfter": {
+                            "Transform_To_XML_Using_XSLT": [
+                                "Succeeded"
+                            ]
+                        },
+                        "metadata": {
+                            "description": "Sends transformed XML to Azure Storage Queue"
+                        }
+                    },
                     "Transform_To_JSON_Using_Liquid": {
-                      "type": "Liquid",
-                      "inputs": {
-                        "content": "@outputs('Convert_CSV_To_XML_Intermediate')",
-                        "map": {
-                          "source": "LogicApp",
-                          "name": "EmployeeCSVToJSON.liquid"
+                        "type": "Liquid",
+                        "kind": "XmlToJson",
+                        "inputs": {
+                            "content": "@body('Decode_Flat_File')",
+                            "map": {
+                                "source": "LogicApp",
+                                "name": "EmployeeCSVToJSON.liquid"
+                            }
+                        },
+                        "runAfter": {
+                            "Decode_Flat_File": [
+                                "Succeeded"
+                            ]
+                        },
+                        "metadata": {
+                            "description": "Transform decoded XML to JSON using Liquid template"
                         }
-                      },
-                      "runAfter": {},
-                      "kind": "JsonToJson"
-                    },
-                    "Set_JSON_Output": {
-                      "type": "SetVariable",
-                      "inputs": {
-                        "name": "JSONOutput",
-                        "value": "@{body('Transform_To_JSON_Using_Liquid')}"
-                      },
-                      "runAfter": {
-                        "Transform_To_JSON_Using_Liquid": [
-                          "Succeeded"
-                        ]
-                      }
                     },
                     "Send_JSON_To_Storage_Queue": {
-                      "type": "ApiConnection",
-                      "inputs": {
-                        "host": {
-                          "connection": {
-                            "referenceName": "azurequeues"
-                          }
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "referenceName": "azurequeues"
+                                }
+                            },
+                            "method": "post",
+                            "body": "@body('Transform_To_JSON_Using_Liquid')",
+                            "path": "/v2/storageAccounts/@{encodeURIComponent(encodeURIComponent('AccountNameFromSettings'))}/queues/@{encodeURIComponent('flatfile-json-queue')}/messages",
+                            "queries": {
+                                "visibilitytimeout": "0"
+                            }
                         },
-                        "method": "post",
-                        "path": "/v2/storageAccounts/@{encodeURIComponent(encodeURIComponent('AccountNameFromSettings'))}/queues/@{encodeURIComponent('flatfile-json-queue')}/messages",
-                        "body": "@variables('JSONOutput')",
-                        "queries": {
-                          "visibilitytimeout": "0"
+                        "runAfter": {
+                            "Transform_To_JSON_Using_Liquid": [
+                                "Succeeded"
+                            ]
+                        },
+                        "metadata": {
+                            "description": "Sends transformed JSON to Azure Storage Queue"
                         }
-                      },
-                      "runAfter": {
-                        "Set_JSON_Output": [
-                          "Succeeded"
-                        ]
-                      },
-                      "metadata": {
-                        "description": "Sends transformed JSON to Azure Storage Queue"
-                      }
+                    },
+                    "Complete_ServiceBus_Message": {
+                        "type": "ServiceProvider",
+                        "inputs": {
+                            "parameters": {
+                                "queueName": "flatfile-processing-queue",
+                                "lockToken": "@triggerBody()?['lockToken']"
+                            },
+                            "serviceProviderConfiguration": {
+                                "connectionName": "serviceBus",
+                                "operationId": "completeQueueMessageV2",
+                                "serviceProviderId": "/serviceProviders/serviceBus"
+                            }
+                        },
+                        "runAfter": {
+                            "Send_XML_To_Storage_Queue": [
+                                "Succeeded"
+                            ],
+                            "Send_JSON_To_Storage_Queue": [
+                                "Succeeded"
+                            ]
+                        },
+                        "metadata": {
+                            "description": "Complete Service Bus message after processing"
+                        }
+                    },
+                    "Log_Transformation_Success": {
+                        "type": "Compose",
+                        "inputs": {
+                            "workflowName": "wf-flatfile-transformation",
+                            "correlationId": "@variables('CorrelationId')",
+                            "status": "Success",
+                            "message": "Successfully transformed and queued XML and JSON messages",
+                            "xmlQueueStatus": "@actions('Send_XML_To_Storage_Queue')['status']",
+                            "jsonQueueStatus": "@actions('Send_JSON_To_Storage_Queue')['status']",
+                            "timestamp": "@utcNow()",
+                            "runId": "@workflow()['run']['name']"
+                        },
+                        "runAfter": {
+                            "Complete_ServiceBus_Message": [
+                                "Succeeded"
+                            ]
+                        },
+                        "metadata": {
+                            "description": "Log successful transformation completion"
+                        }
                     }
-                  }
                 },
-                "runAfter": {}
-              }
-            },
-            "runAfter": {
-              "Convert_CSV_To_XML_Intermediate": [
-                "Succeeded"
-              ]
-            },
-            "runtimeConfiguration": {
-              "concurrency": {
-                "repetitions": 2
-              }
-            },
-            "metadata": {
-              "description": "Performs XML and JSON transformations in parallel"
-            }
-          },
-          "Complete_ServiceBus_Message": {
-            "type": "ServiceProvider",
-            "inputs": {
-              "parameters": {
-                "lockToken": "@triggerBody()?['lockToken']"
-              },
-              "serviceProviderConfiguration": {
-                "connectionName": "serviceBus",
-                "operationId": "completeMessage",
-                "serviceProviderId": "/serviceProviders/serviceBus"
-              }
-            },
-            "runAfter": {
-              "Parallel_Transformations": [
-                "Succeeded"
-              ]
-            }
-          },
-          "Log_Transformation_Success": {
-            "type": "Compose",
-            "inputs": {
-              "workflowName": "wf-flatfile-transformation",
-              "correlationId": "@variables('CorrelationId')",
-              "status": "Success",
-              "message": "Successfully transformed and queued XML and JSON messages",
-              "timestamp": "@utcNow()",
-              "runId": "@workflow()['run']['name']"
-            },
-            "runAfter": {
-              "Complete_ServiceBus_Message": [
-                "Succeeded"
-              ]
-            }
-          }
-        },
-        "runAfter": {
-          "Initialize_JSONOutput": [
-            "Succeeded"
-          ]
-        }
-      },
-      "Scope_ErrorHandling": {
-        "type": "Scope",
-        "actions": {
-          "Condition_Check_Transformation_Error": {
-            "type": "If",
-            "expression": {
-              "or": [
-                {
-                  "equals": [
-                    "@result('Scope_Transformation')[0]['status']",
-                    "Failed"
-                  ]
-                },
-                {
-                  "equals": [
-                    "@result('Scope_Transformation')[0]['status']",
-                    "TimedOut"
-                  ]
+                "runAfter": {
+                    "Initialize_ErrorMessage": [
+                        "Succeeded"
+                    ]
                 }
-              ]
             },
-            "actions": {
-              "Compose_Transformation_Error": {
-                "type": "Compose",
+            "Scope_ErrorHandling": {
+                "type": "Scope",
+                "actions": {
+                    "Compose_Transformation_Error": {
+                        "type": "Compose",
+                        "inputs": {
+                            "workflowName": "wf-flatfile-transformation",
+                            "correlationId": "@variables('CorrelationId')",
+                            "errorMessage": "@result('Scope_Transformation')[0]['error']['message']",
+                            "errorCode": "@result('Scope_Transformation')[0]['error']['code']",
+                            "fileName": "@{triggerBody()?['properties']?['FileName']}",
+                            "timestamp": "@utcNow()",
+                            "runId": "@workflow()['run']['name']",
+                            "originalMessage": "@triggerBody()"
+                        }
+                    },
+                    "Dead_Letter_ServiceBus_Message": {
+                        "type": "ServiceProvider",
+                        "inputs": {
+                            "parameters": {
+                                "queueName": "flatfile-processing-queue",
+                                "lockToken": "@triggerBody()?['lockToken']",
+                                "deadLetterReason": "TransformationFailed",
+                                "deadLetterErrorDescription": "@{outputs('Compose_Transformation_Error')}"
+                            },
+                            "serviceProviderConfiguration": {
+                                "connectionName": "serviceBus",
+                                "operationId": "deadLetterQueueMessageV2",
+                                "serviceProviderId": "/serviceProviders/serviceBus"
+                            }
+                        },
+                        "runAfter": {
+                            "Compose_Transformation_Error": [
+                                "Succeeded"
+                            ]
+                        },
+                        "metadata": {
+                            "description": "Move failed message to dead-letter queue"
+                        }
+                    },
+                    "Send_Error_Notification": {
+                        "type": "Compose",
+                        "inputs": {
+                            "alertType": "TransformationError",
+                            "details": "@outputs('Compose_Transformation_Error')",
+                            "severity": "High"
+                        },
+                        "runAfter": {
+                            "Dead_Letter_ServiceBus_Message": [
+                                "Succeeded"
+                            ]
+                        },
+                        "metadata": {
+                            "description": "Can be extended to send email/Teams notification"
+                        }
+                    },
+                    "Terminate_With_Transformation_Error": {
+                        "type": "Terminate",
+                        "inputs": {
+                            "runStatus": "Failed",
+                            "runError": {
+                                "code": "TransformationFailed",
+                                "message": "@{outputs('Compose_Transformation_Error')}"
+                            }
+                        },
+                        "runAfter": {
+                            "Send_Error_Notification": [
+                                "Succeeded"
+                            ]
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Scope_Transformation": [
+                        "Failed",
+                        "TimedOut"
+                    ]
+                }
+            },
+            "Initialize_ErrorMessage": {
+                "type": "InitializeVariable",
                 "inputs": {
-                  "workflowName": "wf-flatfile-transformation",
-                  "correlationId": "@variables('CorrelationId')",
-                  "errorMessage": "@result('Scope_Transformation')[0]['error']['message']",
-                  "errorCode": "@result('Scope_Transformation')[0]['error']['code']",
-                  "fileName": "@{triggerBody()?['properties']?['FileName']}",
-                  "timestamp": "@utcNow()",
-                  "runId": "@workflow()['run']['name']",
-                  "originalMessage": "@triggerBody()"
+                    "variables": [
+                        {
+                            "name": "CorrelationId",
+                            "type": "string",
+                            "value": "@{triggerBody()?['properties']?['CorrelationId']}"
+                        },
+                        {
+                            "name": "ErrorMessage",
+                            "type": "string",
+                            "value": ""
+                        }
+                    ]
                 },
                 "runAfter": {}
-              },
-              "Dead_Letter_ServiceBus_Message": {
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "triggers": {
+            "When_messages_are_available_in_queue": {
                 "type": "ServiceProvider",
                 "inputs": {
-                  "parameters": {
-                    "lockToken": "@triggerBody()?['lockToken']",
-                    "deadLetterReason": "TransformationFailed",
-                    "deadLetterErrorDescription": "@{outputs('Compose_Transformation_Error')}"
-                  },
-                  "serviceProviderConfiguration": {
-                    "connectionName": "serviceBus",
-                    "operationId": "deadLetterMessage",
-                    "serviceProviderId": "/serviceProviders/serviceBus"
-                  }
+                    "parameters": {
+                        "queueName": "flatfile-processing-queue",
+                        "isSessionsEnabled": false
+                    },
+                    "serviceProviderConfiguration": {
+                        "connectionName": "serviceBus",
+                        "operationId": "peekLockQueueMessagesV2",
+                        "serviceProviderId": "/serviceProviders/serviceBus"
+                    }
                 },
-                "runAfter": {
-                  "Compose_Transformation_Error": [
-                    "Succeeded"
-                  ]
-                }
-              },
-              "Send_Error_Notification": {
-                "type": "Compose",
-                "inputs": {
-                  "alertType": "TransformationError",
-                  "details": "@outputs('Compose_Transformation_Error')",
-                  "severity": "High"
-                },
-                "runAfter": {
-                  "Dead_Letter_ServiceBus_Message": [
-                    "Succeeded"
-                  ]
-                },
+                "splitOn": "@triggerOutputs()?['body']",
                 "metadata": {
-                  "description": "Can be extended to send email/Teams notification"
+                    "description": "Triggers when a message is received in Service Bus queue from wf-flatfile-pickup"
                 }
-              },
-              "Terminate_With_Transformation_Error": {
-                "type": "Terminate",
-                "inputs": {
-                  "runStatus": "Failed",
-                  "runError": {
-                    "code": "TransformationFailed",
-                    "message": "@{outputs('Compose_Transformation_Error')}"
-                  }
-                },
-                "runAfter": {
-                  "Send_Error_Notification": [
-                    "Succeeded"
-                  ]
-                }
-              }
-            },
-            "runAfter": {}
-          }
-        },
-        "runAfter": {
-          "Scope_Transformation": [
-            "Succeeded",
-            "Failed",
-            "TimedOut"
-          ]
+            }
         }
-      }
     },
-    "contentVersion": "1.0.0.0",
-    "outputs": {},
-    "triggers": {
-      "When_messages_are_available_in_queue": {
-        "type": "ServiceProvider",
-        "inputs": {
-          "parameters": {
-            "queueName": "flatfile-processing-queue",
-            "isSessionsEnabled": false
-          },
-          "serviceProviderConfiguration": {
-            "connectionName": "serviceBus",
-            "operationId": "receiveQueueMessages",
-            "serviceProviderId": "/serviceProviders/serviceBus"
-          }
-        },
-        "metadata": {
-          "description": "Triggers when a message is received in Service Bus queue from wf-flatfile-pickup"
-        },
-        "recurrence": {
-          "frequency": "Second",
-          "interval": 30
-        },
-        "splitOn": "@triggerOutputs()?['body']"
-      }
-    }
-  },
-  "kind": "Stateful"
+    "kind": "Stateful"
 }
