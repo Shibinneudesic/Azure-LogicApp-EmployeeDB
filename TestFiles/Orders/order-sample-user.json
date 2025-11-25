@@ -1,0 +1,24 @@
+{
+    "OrderNumber": "O1234",
+    "CustomerID": "123456",
+    "OrderType": "Retail",
+    "Status": "New",
+    "CurrentTime": "2020-06-11T10:19:03+05:30",
+    "itemList": [
+        {
+            "LineID": 1,
+            "ProductID": "CFS TV",
+            "Quantity": 1
+        },
+        {
+            "LineID": 2,
+            "ProductID": "CFS Live Box",
+            "Quantity": 1
+        },
+        {
+            "LineID": 3,
+            "ProductID": "CFS VOIP",
+            "Quantity": 2
+        }
+    ]
+}

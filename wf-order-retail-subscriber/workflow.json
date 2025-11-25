@@ -1,0 +1,175 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "contentVersion": "1.0.0.0",
+        "triggers": {
+            "When_messages_are_available_in_a_topic_subscription_(peek-lock)": {
+                "type": "ServiceProvider",
+                "inputs": {
+                    "parameters": {
+                        "topicName": "orders-topic",
+                        "subscriptionName": "RetailSubscription"
+                    },
+                    "serviceProviderConfiguration": {
+                        "connectionName": "serviceBus",
+                        "operationId": "peekLockTopicMessagesV2",
+                        "serviceProviderId": "/serviceProviders/serviceBus"
+                    }
+                },
+                "splitOn": "@triggerOutputs()?['body']"
+            }
+        },
+        "actions": {
+            "Initialize_Variables": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "OrderId",
+                            "type": "string",
+                            "value": "@coalesce(triggerBody()?['properties']?['OrderId'], triggerBody()?['properties']?['orderId'], 'UNKNOWN')"
+                        },
+                        {
+                            "name": "Timestamp",
+                            "type": "string",
+                            "value": "@replace(replace(replace(utcNow(), ':', ''), '-', ''), ' ', '')"
+                        }
+                    ]
+                },
+                "runAfter": {}
+            },
+            "Scope_Process_Retail_Order": {
+                "type": "Scope",
+                "actions": {
+                    "Create_Retail_XML_Blob": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "referenceName": "azureblob"
+                                }
+                            },
+                            "method": "post",
+                            "body": "@coalesce(if(or(equals(triggerBody()?['body'], null), equals(triggerBody()?['body'], '')), null, base64ToString(triggerBody()?['body'])), triggerBody()?['contentData'])",
+                            "path": "/datasets/default/files",
+                            "queries": {
+                                "folderPath": "orders/retailorder",
+                                "name": "@concat(variables('OrderId'), '_', variables('Timestamp'), '.xml')"
+                            }
+                        }
+                    },
+                    "Log_Success": {
+                        "type": "Compose",
+                        "inputs": {
+                            "workflowName": "wf-order-retail-subscriber",
+                            "orderId": "@variables('OrderId')",
+                            "status": "Success",
+                            "message": "Retail XML successfully written to Blob.",
+                            "timestamp": "@utcNow()",
+                            "runId": "@workflow()['run']['name']"
+                        },
+                        "runAfter": {
+                            "Complete_the_message_in_a_topic_subscription": [
+                                "SUCCEEDED"
+                            ]
+                        }
+                    },
+                    "Complete_the_message_in_a_topic_subscription": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "referenceName": "servicebus-2"
+                                }
+                            },
+                            "method": "delete",
+                            "path": "/@{encodeURIComponent(encodeURIComponent('orders-topic'))}/subscriptions/@{encodeURIComponent('RetailSubscription')}/messages/complete",
+                            "queries": {
+                                "lockToken": "@triggerBody()?['lockToken']",
+                                "subscriptionType": "Main",
+                                "sessionId": ""
+                            }
+                        },
+                        "runAfter": {
+                            "Create_Retail_XML_Blob": [
+                                "Succeeded"
+                            ]
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Initialize_Variables": [
+                        "Succeeded"
+                    ]
+                }
+            },
+            "Scope_ErrorHandling": {
+                "type": "Scope",
+                "actions": {
+                    "Compose_Error": {
+                        "type": "Compose",
+                        "inputs": {
+                            "workflowName": "wf-order-retail-subscriber",
+                            "orderId": "@variables('OrderId')",
+                            "status": "Failed",
+                            "errorMessage": "@result('Scope_Process_Retail_Order')[0]['error']['message']",
+                            "errorCode": "@result('Scope_Process_Retail_Order')[0]['error']['code']",
+                            "timestamp": "@utcNow()",
+                            "runId": "@workflow()['run']['name']"
+                        }
+                    },
+                    "Terminate_Failed": {
+                        "type": "Terminate",
+                        "inputs": {
+                            "runStatus": "Failed",
+                            "runError": {
+                                "code": "RetailOrderProcessingFailed",
+                                "message": "@{outputs('Compose_Error')}"
+                            }
+                        },
+                        "runAfter": {
+                            "Dead-letter_the_message_in_a_topic_subscription": [
+                                "SUCCEEDED"
+                            ]
+                        }
+                    },
+                    "Dead-letter_the_message_in_a_topic_subscription": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "referenceName": "servicebus-2"
+                                }
+                            },
+                            "method": "post",
+                            "path": "/@{encodeURIComponent(encodeURIComponent('orders-topic'))}/subscriptions/@{encodeURIComponent('RetailSubscription')}/messages/deadletter",
+                            "queries": {
+                                "lockToken": "@triggerBody()?['lockToken']",
+                                "sessionId": "",
+                                "deadLetterReason": "ProcessingFailed",
+                                "deadLetterErrorDescription": "@{outputs('Compose_Error')}\n"
+                            }
+                        },
+                        "runAfter": {
+                            "Compose_Error": [
+                                "Succeeded",
+                                "Failed",
+                                "TimedOut",
+                                "Skipped"
+                            ]
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Scope_Process_Retail_Order": [
+                        "Failed",
+                        "Skipped",
+                        "TimedOut"
+                    ]
+                }
+            }
+        },
+        "outputs": {}
+    },
+    "kind": "stateful"
+}

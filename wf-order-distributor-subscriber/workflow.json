@@ -1,0 +1,175 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "contentVersion": "1.0.0.0",
+        "triggers": {
+            "When_messages_are_available_in_a_topic_subscription_(peek-lock)": {
+                "type": "ServiceProvider",
+                "inputs": {
+                    "parameters": {
+                        "topicName": "orders-topic",
+                        "subscriptionName": "DistributorSubscription"
+                    },
+                    "serviceProviderConfiguration": {
+                        "connectionName": "serviceBus",
+                        "operationId": "peekLockTopicMessagesV2",
+                        "serviceProviderId": "/serviceProviders/serviceBus"
+                    }
+                },
+                "splitOn": "@triggerOutputs()?['body']"
+            }
+        },
+        "actions": {
+            "Initialize_Variables": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "OrderId",
+                            "type": "string",
+                            "value": "@coalesce(triggerBody()?['properties']?['OrderId'], triggerBody()?['properties']?['orderId'], 'UNKNOWN')"
+                        },
+                        {
+                            "name": "Timestamp",
+                            "type": "string",
+                            "value": "@replace(replace(replace(utcNow(), ':', ''), '-', ''), ' ', '')"
+                        }
+                    ]
+                },
+                "runAfter": {}
+            },
+            "Scope_Process_Distributor_Order": {
+                "type": "Scope",
+                "actions": {
+                    "Create_Distributor_JSON_Blob": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "referenceName": "azureblob"
+                                }
+                            },
+                            "method": "post",
+                            "body": "@coalesce(if(or(equals(triggerBody()?['body'], null), equals(triggerBody()?['body'], '')), null, base64ToString(triggerBody()?['body'])), triggerBody()?['contentData'])",
+                            "path": "/datasets/default/files",
+                            "queries": {
+                                "folderPath": "orders/distributororder",
+                                "name": "@concat(variables('OrderId'), '_', variables('Timestamp'), '.json')"
+                            }
+                        }
+                    },
+                    "Complete_the_message_in_a_topic_subscription": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "referenceName": "servicebus-2"
+                                }
+                            },
+                            "method": "delete",
+                            "path": "/@{encodeURIComponent(encodeURIComponent('orders-topic'))}/subscriptions/@{encodeURIComponent('DistributorSubscription')}/messages/complete",
+                            "queries": {
+                                "lockToken": "@triggerBody()?['lockToken']",
+                                "subscriptionType": "Main",
+                                "sessionId": ""
+                            }
+                        },
+                        "runAfter": {
+                            "Create_Distributor_JSON_Blob": [
+                                "Succeeded"
+                            ]
+                        }
+                    },
+                    "Log_Success": {
+                        "type": "Compose",
+                        "inputs": {
+                            "workflowName": "wf-order-distributor-subscriber",
+                            "orderId": "@variables('OrderId')",
+                            "status": "Success",
+                            "message": "Distributor JSON successfully written to Blob.",
+                            "timestamp": "@utcNow()",
+                            "runId": "@workflow()['run']['name']"
+                        },
+                        "runAfter": {
+                            "Complete_the_message_in_a_topic_subscription": [
+                                "SUCCEEDED"
+                            ]
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Initialize_Variables": [
+                        "Succeeded"
+                    ]
+                }
+            },
+            "Scope_ErrorHandling": {
+                "type": "Scope",
+                "actions": {
+                    "Compose_Error": {
+                        "type": "Compose",
+                        "inputs": {
+                            "workflowName": "wf-order-distributor-subscriber",
+                            "orderId": "@variables('OrderId')",
+                            "status": "Failed",
+                            "errorMessage": "@result('Scope_Process_Distributor_Order')[0]['error']['message']",
+                            "errorCode": "@result('Scope_Process_Distributor_Order')[0]['error']['code']",
+                            "timestamp": "@utcNow()",
+                            "runId": "@workflow()['run']['name']"
+                        }
+                    },
+                    "Dead-letter_the_message_in_a_topic_subscription": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "referenceName": "servicebus-2"
+                                }
+                            },
+                            "method": "post",
+                            "path": "/@{encodeURIComponent(encodeURIComponent('orders-topic'))}/subscriptions/@{encodeURIComponent('DistributorSubscription')}/messages/deadletter",
+                            "queries": {
+                                "lockToken": "@triggerBody()?['lockToken']",
+                                "sessionId": "",
+                                "deadLetterReason": "ProcessingFailed",
+                                "deadLetterErrorDescription": "@{outputs('Compose_Error')}\n"
+                            }
+                        },
+                        "runAfter": {
+                            "Compose_Error": [
+                                "Succeeded",
+                                "Failed",
+                                "TimedOut",
+                                "Skipped"
+                            ]
+                        }
+                    },
+                    "Terminate_Failed": {
+                        "type": "Terminate",
+                        "inputs": {
+                            "runStatus": "Failed",
+                            "runError": {
+                                "code": "DistributorOrderProcessingFailed",
+                                "message": "@{outputs('Compose_Error')}"
+                            }
+                        },
+                        "runAfter": {
+                            "Dead-letter_the_message_in_a_topic_subscription": [
+                                "SUCCEEDED"
+                            ]
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Scope_Process_Distributor_Order": [
+                        "Failed",
+                        "Skipped",
+                        "TimedOut"
+                    ]
+                }
+            }
+        },
+        "outputs": {}
+    },
+    "kind": "stateful"
+}
