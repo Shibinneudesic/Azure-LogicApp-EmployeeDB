@@ -36,14 +36,13 @@
                 "inputs": {
                     "variables": [
                         {
-                            "name": "OrderId",
-                            "type": "string",
-                            "value": ""
-                        },
-                        {
-                            "name": "OrderType",
-                            "type": "string",
-                            "value": ""
+                            "name": "OrderContext",
+                            "type": "object",
+                            "value": {
+                                "orderId": "",
+                                "orderType": "",
+                                "customerId": ""
+                            }
                         },
                         {
                             "name": "CustomerId",
@@ -64,180 +63,177 @@
                 },
                 "runAfter": {}
             },
-            "Get_Blob_Content": {
-                "type": "ApiConnection",
+            "Log_Workflow_Start": {
+                "type": "Compose",
                 "inputs": {
-                    "host": {
-                        "connection": {
-                            "referenceName": "azureblob"
-                        }
-                    },
-                    "method": "get",
-                    "path": "/datasets/default/files/@{encodeURIComponent(encodeURIComponent(variables('BlobPath')))}/content"
+                    "workflow": "wf-order-orchestrator",
+                    "event": "WorkflowStarted",
+                    "blobName": "@variables('BlobName')",
+                    "blobPath": "@variables('BlobPath')",
+                    "timestamp": "@utcNow()",
+                    "runId": "@workflow()['run']['name']"
                 },
                 "runAfter": {
                     "Initialize_Variables": [
                         "Succeeded"
                     ]
                 },
-                "metadata": {
-                    "description": "Get the content of the order JSON file from blob storage"
+                "trackedProperties": {
+                    "logLevel": "INFO",
+                    "workflow": "wf-order-orchestrator",
+                    "event": "WorkflowStarted",
+                    "blobName": "@outputs('Log_Workflow_Start')?['blobName']"
                 }
             },
-            "Parse_JSON": {
-                "type": "ParseJson",
-                "inputs": {
-                    "content": "@base64ToString(body('Get_Blob_Content')?['$content'])",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "OrderNumber": {
-                                "type": "string"
-                            },
-                            "CustomerID": {
-                                "type": "string"
-                            },
-                            "OrderType": {
-                                "type": "string"
-                            },
-                            "Status": {
-                                "type": "string"
-                            },
-                            "CurrentTime": {
-                                "type": "string"
-                            },
-                            "itemList": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "LineID": {
-                                            "type": "integer"
-                                        },
-                                        "ProductID": {
-                                            "type": "string"
-                                        },
-                                        "Quantity": {
-                                            "type": "integer"
-                                        }
-                                    }
+            "Scope_Process_Order": {
+                "type": "Scope",
+                "actions": {
+                    "Get_Blob_Content": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "referenceName": "azureblob"
                                 }
                             },
-                            "Other": {
-                                "type": "object"
+                            "method": "get",
+                            "path": "/datasets/default/files/@{encodeURIComponent(encodeURIComponent(variables('BlobPath')))}/content"
+                        },
+                        "runAfter": {},
+                        "metadata": {
+                            "description": "Get the content of the order JSON file from blob storage"
+                        }
+                    },
+                    "Parse_JSON": {
+                        "type": "ParseJson",
+                        "inputs": {
+                            "content": "@base64ToString(body('Get_Blob_Content')?['$content'])",
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "OrderNumber": {
+                                        "type": "string"
+                                    },
+                                    "CustomerID": {
+                                        "type": "string"
+                                    },
+                                    "OrderType": {
+                                        "type": "string"
+                                    },
+                                    "Status": {
+                                        "type": "string"
+                                    },
+                                    "CurrentTime": {
+                                        "type": "string"
+                                    },
+                                    "itemList": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "LineID": {
+                                                    "type": "integer"
+                                                },
+                                                "ProductID": {
+                                                    "type": "string"
+                                                },
+                                                "Quantity": {
+                                                    "type": "integer"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "Other": {
+                                        "type": "object"
+                                    }
+                                },
+                                "required": [
+                                    "OrderNumber",
+                                    "OrderType"
+                                ]
                             }
                         },
-                        "required": [
-                            "OrderNumber",
-                            "OrderType"
-                        ]
-                    }
-                },
-                "runAfter": {
-                    "Get_Blob_Content": [
-                        "Succeeded"
-                    ]
-                },
-                "metadata": {
-                    "description": "Parse the incoming JSON order"
-                }
-            },
-            "Set_Order_Variables": {
-                "type": "SetVariable",
-                "inputs": {
-                    "name": "OrderId",
-                    "value": "@body('Parse_JSON')?['OrderNumber']"
-                },
-                "runAfter": {
-                    "Parse_JSON": [
-                        "Succeeded"
-                    ]
-                }
-            },
-            "Set_OrderType_Variable": {
-                "type": "SetVariable",
-                "inputs": {
-                    "name": "OrderType",
-                    "value": "@body('Parse_JSON')?['OrderType']"
-                },
-                "runAfter": {
-                    "Set_Order_Variables": [
-                        "Succeeded"
-                    ]
-                }
-            },
-            "Set_CustomerId_Variable": {
-                "type": "SetVariable",
-                "inputs": {
-                    "name": "CustomerId",
-                    "value": "@body('Parse_JSON')?['CustomerID']"
-                },
-                "runAfter": {
-                    "Set_OrderType_Variable": [
-                        "Succeeded"
-                    ]
-                }
-            },
-            "Validate_OrderType": {
-                "type": "If",
-                "expression": {
-                    "or": [
-                        {
-                            "equals": [
-                                "@body('Parse_JSON')?['OrderType']",
-                                "Retail"
+                        "runAfter": {
+                            "Get_Blob_Content": [
+                                "Succeeded"
                             ]
                         },
-                        {
-                            "equals": [
-                                "@body('Parse_JSON')?['OrderType']",
-                                "Distributor"
+                        "metadata": {
+                            "description": "Parse the incoming JSON order"
+                        }
+                    },
+                    "Set_Order_Context": {
+                        "type": "SetVariable",
+                        "inputs": {
+                            "name": "OrderContext",
+                            "value": {
+                                "orderId": "@body('Parse_JSON')?['OrderNumber']",
+                                "orderType": "@body('Parse_JSON')?['OrderType']",
+                                "customerId": "@body('Parse_JSON')?['CustomerID']"
+                            }
+                        },
+                        "runAfter": {
+                            "Parse_JSON": [
+                                "Succeeded"
                             ]
                         }
-                    ]
-                },
-                "actions": {
-                    "Build_Normalized_Payload": {
+                    },
+                    "Log_JSON_Parsed": {
+                        "type": "Compose",
+                        "inputs": {
+                            "workflow": "wf-order-orchestrator",
+                            "event": "JSONParsed",
+                            "orderId": "@variables('OrderContext')?['orderId']",
+                            "orderType": "@variables('OrderContext')?['orderType']",
+                            "timestamp": "@utcNow()",
+                            "runId": "@workflow()['run']['name']"
+                        },
+                        "runAfter": {
+                            "Set_Order_Context": [
+                                "Succeeded"
+                            ]
+                        },
+                        "trackedProperties": {
+                            "logLevel": "INFO",
+                            "workflow": "wf-order-orchestrator",
+                            "event": "JSONParsed",
+                            "orderId": "@outputs('Log_JSON_Parsed')?['orderId']",
+                            "orderType": "@outputs('Log_JSON_Parsed')?['orderType']"
+                        }
+                    },
+                    "Validate_OrderType": {
                         "type": "If",
                         "expression": {
-                            "equals": [
-                                "@body('Parse_JSON')?['OrderType']",
-                                "Retail"
+                            "or": [
+                                {
+                                    "equals": [
+                                        "@body('Parse_JSON')?['OrderType']",
+                                        "Retail"
+                                    ]
+                                },
+                                {
+                                    "equals": [
+                                        "@body('Parse_JSON')?['OrderType']",
+                                        "Distributor"
+                                    ]
+                                }
                             ]
                         },
                         "actions": {
-                            "Build_Items_XML": {
-                                "type": "Select",
-                                "inputs": {
-                                    "from": "@body('Parse_JSON')?['itemList']",
-                                    "select": {
-                                        "ItemXML": "@concat('<Item><ProductId>', item()?['ProductID'], '</ProductId><Quantity>', item()?['Quantity'], '</Quantity></Item>')"
-                                    }
-                                }
-                            },
-                            "Build_XML_String": {
-                                "type": "Compose",
-                                "inputs": "@concat(\r\n  '<Order>',\r\n    '<OrderId>', body('Parse_JSON')?['OrderNumber'], '</OrderId>',\r\n    '<CustomerId>', body('Parse_JSON')?['CustomerID'], '</CustomerId>',\r\n    '<OrderType>', body('Parse_JSON')?['OrderType'], '</OrderType>',\r\n    '<OrderStatus>', body('Parse_JSON')?['Status'], '</OrderStatus>',\r\n    '<OrderDateTime>', body('Parse_JSON')?['CurrentTime'], '</OrderDateTime>',\r\n    '<Items>',\r\n      join(outputs('Extract_ItemXML_Array')?['body'], ''),\r\n    '</Items>',\r\n  '</Order>'\r\n)",
-                                "runAfter": {
-                                    "Extract_ItemXML_Array": [
-                                        "Succeeded"
-                                    ]
-                                }
-                            },
-                            "Publish_To_ServiceBus_Topic": {
+                            "Publish_Validated_Order": {
                                 "type": "ServiceProvider",
                                 "inputs": {
                                     "parameters": {
                                         "entityName": "orders-topic",
                                         "message": {
                                             "contentData": {
-                                                "$content-type": "application/xml",
-                                                "$content": "@base64(outputs('Build_XML_String'))"
+                                                "$content-type": "application/json",
+                                                "$content": "@body('Get_Blob_Content')?['$content']"
                                             },
                                             "userProperties": {
-                                                "orderType": "Retail",
-                                                "orderId": "@body('Parse_JSON')?['OrderNumber']",
-                                                "customerId": "@body('Parse_JSON')?['CustomerID']"
+                                                "orderType": "@variables('OrderContext')?['orderType']",
+                                                "orderId": "@variables('OrderContext')?['orderId']",
+                                                "customerId": "@variables('OrderContext')?['customerId']"
                                             }
                                         }
                                     },
@@ -245,15 +241,15 @@
                                         "connectionName": "serviceBus",
                                         "operationId": "sendMessage",
                                         "serviceProviderId": "/serviceProviders/serviceBus"
+                                    },
+                                    "retryPolicy": {
+                                        "type": "fixed",
+                                        "count": 2,
+                                        "interval": "PT60S"
                                     }
                                 },
-                                "runAfter": {
-                                    "Build_XML_String": [
-                                        "Succeeded"
-                                    ]
-                                },
                                 "metadata": {
-                                    "description": "Publish Retail order XML to Service Bus Topic with OrderType property"
+                                    "description": "Publish validated order JSON to Service Bus topic"
                                 }
                             },
                             "Delete_Original_File": {
@@ -268,7 +264,7 @@
                                     "path": "/datasets/default/files/@{encodeURIComponent(encodeURIComponent(variables('BlobPath')))}"
                                 },
                                 "runAfter": {
-                                    "Publish_To_ServiceBus_Topic": [
+                                    "Publish_Validated_Order": [
                                         "Succeeded"
                                     ]
                                 },
@@ -276,14 +272,14 @@
                                     "description": "Delete the original file after successful processing"
                                 }
                             },
-                            "Log_Retail_Publish_Success": {
+                            "Log_Order_Publish_Success": {
                                 "type": "Compose",
                                 "inputs": {
                                     "workflow": "wf-order-orchestrator",
-                                    "message": "Retail order published to Service Bus and file deleted",
-                                    "orderId": "@variables('OrderId')",
-                                    "orderType": "@variables('OrderType')",
-                                    "customerId": "@variables('CustomerId')",
+                                    "message": "Order published to Service Bus and file deleted",
+                                    "orderId": "@variables('OrderContext')?['orderId']",
+                                    "orderType": "@variables('OrderContext')?['orderType']",
+                                    "customerId": "@variables('OrderContext')?['customerId']",
                                     "timestamp": "@utcNow()"
                                 },
                                 "runAfter": {
@@ -291,76 +287,54 @@
                                         "Succeeded"
                                     ]
                                 },
-                                "trackedProperties": "@outputs('Log_Retail_Publish_Success')"
-                            },
-                            "Flatten_Items_XML": {
-                                "type": "Compose",
-                                "inputs": "@json(string(outputs('Build_Items_XML')))\n",
-                                "runAfter": {
-                                    "Build_Items_XML": [
-                                        "Succeeded"
-                                    ]
-                                }
-                            },
-                            "Extract_ItemXML_Array": {
-                                "type": "Select",
-                                "inputs": {
-                                    "from": "@outputs('Flatten_Items_XML')?['body']",
-                                    "select": "@item()?['ItemXML']"
-                                },
-                                "runAfter": {
-                                    "Flatten_Items_XML": [
-                                        "Succeeded"
-                                    ]
+                                "trackedProperties": {
+                                    "logLevel": "INFO",
+                                    "workflow": "wf-order-orchestrator",
+                                    "event": "OrderPublished",
+                                    "orderId": "@outputs('Log_Order_Publish_Success')?['orderId']",
+                                    "orderType": "@outputs('Log_Order_Publish_Success')?['orderType']",
+                                    "customerId": "@outputs('Log_Order_Publish_Success')?['customerId']"
                                 }
                             }
                         },
                         "else": {
                             "actions": {
-                                "Build_Distributor_JSON": {
+                                "Build_Negative_Message": {
                                     "type": "Compose",
                                     "inputs": {
                                         "OrderId": "@body('Parse_JSON')?['OrderNumber']",
                                         "CustomerId": "@body('Parse_JSON')?['CustomerID']",
                                         "OrderType": "@body('Parse_JSON')?['OrderType']",
-                                        "OrderStatus": "@body('Parse_JSON')?['Status']",
-                                        "OrderDateTime": "@body('Parse_JSON')?['CurrentTime']",
-                                        "Items": "@body('Parse_JSON')?['itemList']"
+                                        "ErrorMessage": "OrderType must be 'Retail' or 'Distributor'",
+                                        "TimestampUtc": "@utcNow()"
                                     }
                                 },
-                                "Publish_To_ServiceBus_Topic_Distributor": {
-                                "type": "ServiceProvider",
-                                "inputs": {
-                                    "parameters": {
-                                        "entityName": "orders-topic",
-                                        "message": {
-                                            "contentData": {
-                                                "$content-type": "application/json",
-                                                "$content": "@base64(string(outputs('Build_Distributor_JSON')))"
-                                            },
-                                            "userProperties": {
-                                                "orderType": "@outputs('Build_Distributor_JSON')?['OrderType']",
-                                                "orderId": "@outputs('Build_Distributor_JSON')?['OrderId']",
-                                                "customerId": "@outputs('Build_Distributor_JSON')?['CustomerId']"
+                                "Write_Negative_Message_To_Error": {
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "host": {
+                                            "connection": {
+                                                "referenceName": "azureblob"
                                             }
+                                        },
+                                        "method": "post",
+                                        "body": "@outputs('Build_Negative_Message')",
+                                        "path": "/datasets/default/files",
+                                        "queries": {
+                                            "folderPath": "/orders/error",
+                                            "name": "@concat('neg_', variables('OrderContext')?['orderId'], '_', replace(replace(replace(utcNow(), ':', ''), '-', ''), ' ', ''), '.json')"
                                         }
                                     },
-                                    "serviceProviderConfiguration": {
-                                        "connectionName": "serviceBus",
-                                        "operationId": "sendMessage",
-                                        "serviceProviderId": "/serviceProviders/serviceBus"
-                                    }
-                                },
                                     "runAfter": {
-                                        "Build_Distributor_JSON": [
+                                        "Build_Negative_Message": [
                                             "Succeeded"
                                         ]
                                     },
                                     "metadata": {
-                                        "description": "Publish Distributor order JSON to Service Bus Topic with OrderType property"
+                                        "description": "Write negative message to error folder"
                                     }
                                 },
-                                "Delete_Original_File_Distributor": {
+                                "Delete_Original_File_On_Error": {
                                     "type": "ApiConnection",
                                     "inputs": {
                                         "host": {
@@ -372,125 +346,108 @@
                                         "path": "/datasets/default/files/@{encodeURIComponent(encodeURIComponent(variables('BlobPath')))}"
                                     },
                                     "runAfter": {
-                                        "Publish_To_ServiceBus_Topic_Distributor": [
+                                        "Write_Negative_Message_To_Error": [
                                             "Succeeded"
                                         ]
                                     },
                                     "metadata": {
-                                        "description": "Delete the original file after successful processing"
+                                        "description": "Delete original file after writing error message"
                                     }
                                 },
-                                "Log_Distributor_Publish_Success": {
+                                "Log_Invalid_OrderType": {
                                     "type": "Compose",
                                     "inputs": {
                                         "workflow": "wf-order-orchestrator",
-                                        "message": "Distributor order published to Service Bus and file deleted",
-                                        "orderId": "@variables('OrderId')",
-                                        "orderType": "@variables('OrderType')",
-                                        "customerId": "@variables('CustomerId')",
+                                        "message": "Invalid order type routed to error container",
+                                        "orderId": "@variables('OrderContext')?['orderId']",
+                                        "orderType": "@variables('OrderContext')?['orderType']",
+                                        "customerId": "@variables('OrderContext')?['customerId']",
                                         "timestamp": "@utcNow()"
                                     },
                                     "runAfter": {
-                                        "Delete_Original_File_Distributor": [
+                                        "Delete_Original_File_On_Error": [
                                             "Succeeded"
                                         ]
                                     },
-                                    "trackedProperties": "@outputs('Log_Distributor_Publish_Success')"
-                                }
-                            }
-                        }
-                    }
-                },
-                "else": {
-                    "actions": {
-                        "Build_Negative_Message": {
-                            "type": "Compose",
-                            "inputs": {
-                                "OrderId": "@body('Parse_JSON')?['OrderNumber']",
-                                "CustomerId": "@body('Parse_JSON')?['CustomerID']",
-                                "OrderType": "@body('Parse_JSON')?['OrderType']",
-                                "ErrorMessage": "OrderType must be 'Retail' or 'Distributor'",
-                                "TimestampUtc": "@utcNow()"
-                            }
-                        },
-                        "Write_Negative_Message_To_Error": {
-                            "type": "ApiConnection",
-                            "inputs": {
-                                "host": {
-                                    "connection": {
-                                        "referenceName": "azureblob"
+                                    "trackedProperties": {
+                                        "logLevel": "WARN",
+                                        "workflow": "wf-order-orchestrator",
+                                        "event": "InvalidOrderType",
+                                        "orderId": "@outputs('Log_Invalid_OrderType')?['orderId']",
+                                        "orderType": "@outputs('Log_Invalid_OrderType')?['orderType']",
+                                        "customerId": "@outputs('Log_Invalid_OrderType')?['customerId']"
                                     }
                                 },
-                                "method": "post",
-                                "body": "@outputs('Build_Negative_Message')",
-                                "path": "/datasets/default/files",
-                                "queries": {
-                                    "folderPath": "/orders/error",
-                                    "name": "@concat('neg_', variables('OrderId'), '_', replace(replace(replace(utcNow(), ':', ''), '-', ''), ' ', ''), '.json')"
-                                }
-                            },
-                            "runAfter": {
-                                "Build_Negative_Message": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "metadata": {
-                                "description": "Write negative message to error folder"
-                            }
-                        },
-                        "Delete_Original_File_On_Error": {
-                            "type": "ApiConnection",
-                            "inputs": {
-                                "host": {
-                                    "connection": {
-                                        "referenceName": "azureblob"
+                                "Terminate_Invalid_Order": {
+                                    "type": "Terminate",
+                                    "inputs": {
+                                        "runStatus": "Succeeded"
+                                    },
+                                    "runAfter": {
+                                        "Log_Invalid_OrderType": [
+                                            "Succeeded"
+                                        ]
                                     }
-                                },
-                                "method": "delete",
-                                "path": "/datasets/default/files/@{encodeURIComponent(encodeURIComponent(variables('BlobPath')))}"
-                            },
-                            "runAfter": {
-                                "Write_Negative_Message_To_Error": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "metadata": {
-                                "description": "Delete original file after writing error message"
+                                }
                             }
                         },
-                        "Log_Invalid_OrderType": {
-                            "type": "Compose",
-                            "inputs": {
-                                "workflow": "wf-order-orchestrator",
-                                "message": "Invalid order type routed to error container",
-                                "orderId": "@variables('OrderId')",
-                                "orderType": "@variables('OrderType')",
-                                "customerId": "@variables('CustomerId')",
-                                "timestamp": "@utcNow()"
-                            },
-                            "runAfter": {
-                                "Delete_Original_File_On_Error": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "trackedProperties": "@outputs('Log_Invalid_OrderType')"
-                        },
-                        "Terminate_Invalid_Order": {
-                            "type": "Terminate",
-                            "inputs": {
-                                "runStatus": "Succeeded"
-                            },
-                            "runAfter": {
-                                "Log_Invalid_OrderType": [
-                                    "Succeeded"
-                                ]
-                            }
+                        "runAfter": {
+                            "Log_JSON_Parsed": [
+                                "Succeeded"
+                            ]
                         }
                     }
                 },
                 "runAfter": {
-                    "Set_CustomerId_Variable": [
+                    "Log_Workflow_Start": [
                         "Succeeded"
+                    ]
+                }
+            },
+            "Scope_ErrorHandling": {
+                "type": "Scope",
+                "actions": {
+                    "Log_Compose_Error": {
+                        "type": "Compose",
+                        "inputs": {
+                            "workflow": "wf-order-orchestrator",
+                            "event": "ProcessingFailed",
+                            "blobName": "@variables('BlobName')",
+                            "blobPath": "@variables('BlobPath')",
+                            "errorDetails": "@string(result('Scope_Process_Order'))",
+                            "timestamp": "@utcNow()",
+                            "runId": "@workflow()['run']['name']"
+                        },
+                        "trackedProperties": {
+                            "logLevel": "ERROR",
+                            "workflow": "wf-order-orchestrator",
+                            "event": "ProcessingFailed"
+                        }
+                    },
+                    "Terminate_Failed": {
+                        "type": "Terminate",
+                        "inputs": {
+                            "runStatus": "Failed",
+                            "runError": {
+                                "code": "OrchestratorProcessingFailed",
+                                "message": "@{outputs('Log_Compose_Error')}"
+                            }
+                        },
+                        "runAfter": {
+                            "Log_Compose_Error": [
+                                "Succeeded",
+                                "Failed",
+                                "TimedOut",
+                                "Skipped"
+                            ]
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Scope_Process_Order": [
+                        "Failed",
+                        "TimedOut",
+                        "Skipped"
                     ]
                 }
             }

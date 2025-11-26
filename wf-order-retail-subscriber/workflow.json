@@ -27,7 +27,7 @@
                         {
                             "name": "OrderId",
                             "type": "string",
-                            "value": "@coalesce(triggerBody()?['properties']?['OrderId'], triggerBody()?['properties']?['orderId'], 'UNKNOWN')"
+                            "value": "@coalesce(triggerBody()?['properties']?['OrderId'], triggerBody()?['properties']?['orderId'], triggerBody()?['properties']?['orderid'], triggerBody()?['messageId'], '')"
                         },
                         {
                             "name": "Timestamp",
@@ -41,6 +41,30 @@
             "Scope_Process_Retail_Order": {
                 "type": "Scope",
                 "actions": {
+                    "Convert_JSON_To_XML": {
+                        "type": "Compose",
+                        "inputs": "@xml(json(concat('{\"root\":', triggerBody()?['contentData'], '}')))",
+                        "runAfter": {}
+                    },
+                    "Transform_Retail_Order_XSLT": {
+                        "type": "Xslt",
+                        "inputs": {
+                            "content": "@outputs('Convert_JSON_To_XML')",
+                            "map": {
+                                "source": "LogicApp",
+                                "name": "order-retail-transform.xslt"
+                            },
+                            "transformOptions": "ApplyXsltOutputAttributes"
+                        },
+                        "runAfter": {
+                            "Convert_JSON_To_XML": [
+                                "Succeeded"
+                            ]
+                        },
+                        "metadata": {
+                            "description": "Transform parsed order into Retail XML using XSLT"
+                        }
+                    },
                     "Create_Retail_XML_Blob": {
                         "type": "ApiConnection",
                         "inputs": {
@@ -50,28 +74,20 @@
                                 }
                             },
                             "method": "post",
-                            "body": "@coalesce(if(or(equals(triggerBody()?['body'], null), equals(triggerBody()?['body'], '')), null, base64ToString(triggerBody()?['body'])), triggerBody()?['contentData'])",
+                            "body": "@body('Transform_Retail_Order_XSLT')",
                             "path": "/datasets/default/files",
                             "queries": {
                                 "folderPath": "orders/retailorder",
                                 "name": "@concat(variables('OrderId'), '_', variables('Timestamp'), '.xml')"
                             }
-                        }
-                    },
-                    "Log_Success": {
-                        "type": "Compose",
-                        "inputs": {
-                            "workflowName": "wf-order-retail-subscriber",
-                            "orderId": "@variables('OrderId')",
-                            "status": "Success",
-                            "message": "Retail XML successfully written to Blob.",
-                            "timestamp": "@utcNow()",
-                            "runId": "@workflow()['run']['name']"
                         },
                         "runAfter": {
-                            "Complete_the_message_in_a_topic_subscription": [
-                                "SUCCEEDED"
+                            "Transform_Retail_Order_XSLT": [
+                                "Succeeded"
                             ]
+                        },
+                        "metadata": {
+                            "description": "Write Retail XML file to Blob container path RetailOrder/"
                         }
                     },
                     "Complete_the_message_in_a_topic_subscription": {
@@ -95,10 +111,34 @@
                                 "Succeeded"
                             ]
                         }
+                    },
+                    "Log_Success": {
+                        "type": "Compose",
+                        "inputs": {
+                            "workflow": "wf-order-retail-subscriber",
+                            "event": "ProcessingComplete",
+                            "orderId": "@variables('OrderId')",
+                            "status": "Processed",
+                            "message": "Retail XML successfully written to Blob.",
+                            "timestamp": "@utcNow()",
+                            "runId": "@workflow()['run']['name']"
+                        },
+                        "runAfter": {
+                            "Complete_the_message_in_a_topic_subscription": [
+                                "SUCCEEDED"
+                            ]
+                        },
+                        "trackedProperties": {
+                            "logLevel": "INFO",
+                            "workflow": "wf-order-retail-subscriber",
+                            "event": "ProcessingComplete",
+                            "orderId": "@outputs('Log_Success')?['orderId']",
+                            "status": "Processed"
+                        }
                     }
                 },
                 "runAfter": {
-                    "Initialize_Variables": [
+                    "Log_Workflow_Start": [
                         "Succeeded"
                     ]
                 }
@@ -106,16 +146,24 @@
             "Scope_ErrorHandling": {
                 "type": "Scope",
                 "actions": {
-                    "Compose_Error": {
+                    "Log_Compose_Error": {
                         "type": "Compose",
                         "inputs": {
-                            "workflowName": "wf-order-retail-subscriber",
+                            "workflow": "wf-order-retail-subscriber",
+                            "event": "ProcessingFailed",
                             "orderId": "@variables('OrderId')",
                             "status": "Failed",
                             "errorMessage": "@result('Scope_Process_Retail_Order')[0]['error']['message']",
                             "errorCode": "@result('Scope_Process_Retail_Order')[0]['error']['code']",
                             "timestamp": "@utcNow()",
                             "runId": "@workflow()['run']['name']"
+                        },
+                        "trackedProperties": {
+                            "logLevel": "ERROR",
+                            "workflow": "wf-order-retail-subscriber",
+                            "event": "ProcessingFailed",
+                            "orderId": "@outputs('Log_Compose_Error')?['orderId']",
+                            "errorCode": "@outputs('Log_Compose_Error')?['errorCode']"
                         }
                     },
                     "Terminate_Failed": {
@@ -124,7 +172,7 @@
                             "runStatus": "Failed",
                             "runError": {
                                 "code": "RetailOrderProcessingFailed",
-                                "message": "@{outputs('Compose_Error')}"
+                                "message": "@{outputs('Log_Compose_Error')}"
                             }
                         },
                         "runAfter": {
@@ -147,11 +195,11 @@
                                 "lockToken": "@triggerBody()?['lockToken']",
                                 "sessionId": "",
                                 "deadLetterReason": "ProcessingFailed",
-                                "deadLetterErrorDescription": "@{outputs('Compose_Error')}\n"
+                                "deadLetterErrorDescription": "@{outputs('Log_Compose_Error')}\n"
                             }
                         },
                         "runAfter": {
-                            "Compose_Error": [
+                            "Log_Compose_Error": [
                                 "Succeeded",
                                 "Failed",
                                 "TimedOut",
@@ -166,6 +214,27 @@
                         "Skipped",
                         "TimedOut"
                     ]
+                }
+            },
+            "Log_Workflow_Start": {
+                "type": "Compose",
+                "inputs": {
+                    "workflow": "wf-order-retail-subscriber",
+                    "event": "WorkflowStarted",
+                    "orderId": "@variables('OrderId')",
+                    "timestamp": "@utcNow()",
+                    "runId": "@workflow()['run']['name']"
+                },
+                "runAfter": {
+                    "Initialize_Variables": [
+                        "SUCCEEDED"
+                    ]
+                },
+                "trackedProperties": {
+                    "logLevel": "INFO",
+                    "workflow": "wf-order-retail-subscriber",
+                    "event": "WorkflowStarted",
+                    "orderId": "@outputs('Log_Workflow_Start')?['orderId']"
                 }
             }
         },

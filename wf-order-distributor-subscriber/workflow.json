@@ -27,7 +27,7 @@
                         {
                             "name": "OrderId",
                             "type": "string",
-                            "value": "@coalesce(triggerBody()?['properties']?['OrderId'], triggerBody()?['properties']?['orderId'], 'UNKNOWN')"
+                            "value": "@coalesce(triggerBody()?['properties']?['OrderId'], triggerBody()?['properties']?['orderId'], triggerBody()?['properties']?['orderid'], triggerBody()?['messageId'], '')"
                         },
                         {
                             "name": "Timestamp",
@@ -41,6 +41,21 @@
             "Scope_Process_Distributor_Order": {
                 "type": "Scope",
                 "actions": {
+                    "Transform_Distributor_Order": {
+                        "type": "Liquid",
+                        "kind": "JsonToJson",
+                        "inputs": {
+                            "content": "@json(triggerBody()?['contentData'])",
+                            "map": {
+                                "source": "LogicApp",
+                                "name": "order-distributor-transform.liquid"
+                            }
+                        },
+                        "runAfter": {},
+                        "metadata": {
+                            "description": "Transform distributor payload to normalized JSON"
+                        }
+                    },
                     "Create_Distributor_JSON_Blob": {
                         "type": "ApiConnection",
                         "inputs": {
@@ -50,12 +65,20 @@
                                 }
                             },
                             "method": "post",
-                            "body": "@coalesce(if(or(equals(triggerBody()?['body'], null), equals(triggerBody()?['body'], '')), null, base64ToString(triggerBody()?['body'])), triggerBody()?['contentData'])",
+                            "body": "@body('Transform_Distributor_Order')",
                             "path": "/datasets/default/files",
                             "queries": {
                                 "folderPath": "orders/distributororder",
                                 "name": "@concat(variables('OrderId'), '_', variables('Timestamp'), '.json')"
                             }
+                        },
+                        "runAfter": {
+                            "Transform_Distributor_Order": [
+                                "Succeeded"
+                            ]
+                        },
+                        "metadata": {
+                            "description": "Write Distributor JSON file to Blob container path DistributorOrder/"
                         }
                     },
                     "Complete_the_message_in_a_topic_subscription": {
@@ -83,7 +106,8 @@
                     "Log_Success": {
                         "type": "Compose",
                         "inputs": {
-                            "workflowName": "wf-order-distributor-subscriber",
+                            "workflow": "wf-order-distributor-subscriber",
+                            "event": "ProcessingComplete",
                             "orderId": "@variables('OrderId')",
                             "status": "Success",
                             "message": "Distributor JSON successfully written to Blob.",
@@ -94,11 +118,18 @@
                             "Complete_the_message_in_a_topic_subscription": [
                                 "SUCCEEDED"
                             ]
+                        },
+                        "trackedProperties": {
+                            "logLevel": "INFO",
+                            "workflow": "wf-order-distributor-subscriber",
+                            "event": "ProcessingComplete",
+                            "orderId": "@outputs('Log_Success')?['orderId']",
+                            "status": "Success"
                         }
                     }
                 },
                 "runAfter": {
-                    "Initialize_Variables": [
+                    "Log_Workflow_Start": [
                         "Succeeded"
                     ]
                 }
@@ -106,16 +137,24 @@
             "Scope_ErrorHandling": {
                 "type": "Scope",
                 "actions": {
-                    "Compose_Error": {
+                    "Log_Compose_Error": {
                         "type": "Compose",
                         "inputs": {
-                            "workflowName": "wf-order-distributor-subscriber",
+                            "workflow": "wf-order-distributor-subscriber",
+                            "event": "ProcessingFailed",
                             "orderId": "@variables('OrderId')",
                             "status": "Failed",
                             "errorMessage": "@result('Scope_Process_Distributor_Order')[0]['error']['message']",
                             "errorCode": "@result('Scope_Process_Distributor_Order')[0]['error']['code']",
                             "timestamp": "@utcNow()",
                             "runId": "@workflow()['run']['name']"
+                        },
+                        "trackedProperties": {
+                            "logLevel": "ERROR",
+                            "workflow": "wf-order-distributor-subscriber",
+                            "event": "ProcessingFailed",
+                            "orderId": "@outputs('Log_Compose_Error')?['orderId']",
+                            "errorCode": "@outputs('Log_Compose_Error')?['errorCode']"
                         }
                     },
                     "Dead-letter_the_message_in_a_topic_subscription": {
@@ -132,11 +171,11 @@
                                 "lockToken": "@triggerBody()?['lockToken']",
                                 "sessionId": "",
                                 "deadLetterReason": "ProcessingFailed",
-                                "deadLetterErrorDescription": "@{outputs('Compose_Error')}\n"
+                                "deadLetterErrorDescription": "@{outputs('Log_Compose_Error')}\n"
                             }
                         },
                         "runAfter": {
-                            "Compose_Error": [
+                            "Log_Compose_Error": [
                                 "Succeeded",
                                 "Failed",
                                 "TimedOut",
@@ -150,7 +189,7 @@
                             "runStatus": "Failed",
                             "runError": {
                                 "code": "DistributorOrderProcessingFailed",
-                                "message": "@{outputs('Compose_Error')}"
+                                "message": "@{outputs('Log_Compose_Error')}"
                             }
                         },
                         "runAfter": {
@@ -166,6 +205,27 @@
                         "Skipped",
                         "TimedOut"
                     ]
+                }
+            },
+            "Log_Workflow_Start": {
+                "type": "Compose",
+                "inputs": {
+                    "workflow": "wf-order-distributor-subscriber",
+                    "event": "WorkflowStarted",
+                    "orderId": "@variables('OrderId')",
+                    "timestamp": "@utcNow()",
+                    "runId": "@workflow()['run']['name']"
+                },
+                "runAfter": {
+                    "Initialize_Variables": [
+                        "SUCCEEDED"
+                    ]
+                },
+                "trackedProperties": {
+                    "logLevel": "INFO",
+                    "workflow": "wf-order-distributor-subscriber",
+                    "event": "WorkflowStarted",
+                    "orderId": "@outputs('Log_Workflow_Start')?['orderId']"
                 }
             }
         },

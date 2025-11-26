@@ -1,0 +1,16 @@
+{
+  "OrderId": "{{ content.OrderNumber }}",
+  "CustomerId": "{{ content.CustomerID }}",
+  "OrderType": "{{ content.OrderType }}",
+  "OrderStatus": "Processed",
+  "OrderDateTime": "{{ content.CurrentTime }}",
+  "Items": [
+  {% for item in content.itemList %}
+    {
+      "ProductId": "{{ item.ProductID }}",
+      "Quantity": {{ item.Quantity | default: 0 }}
+    }{% unless forloop.last %},{% endunless %}
+  {% endfor %}
+  ]
+}
+
